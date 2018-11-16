@@ -1,0 +1,10 @@
+[package]
+name = "signal"
+version = "0.1.0"
+authors = ["Andrew Couch <andrew@cockroachlabs.com>"]
+
+[dependencies]
+curve25519-dalek = "0.21.0"
+rand = "0.5.5"
+double-ratchet = { path = "../double-ratchet" }
+x3dh = { path = "../x3dh" }

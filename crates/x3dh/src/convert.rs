@@ -22,6 +22,10 @@ impl SessionKey {
     pub fn new(key: [u8; 32]) -> SessionKey {
         SessionKey(key)
     }
+
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
 }
 
 pub struct X25519Keypair {

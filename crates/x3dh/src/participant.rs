@@ -36,6 +36,16 @@ impl Participant {
         self.ik.public.into()
     }
 
+    /// The participant's signed prekey.
+    pub fn spk(&self) -> PublicKey {
+        self.spk.public.into()
+    }
+
+    /// THe participant's signed prekey secret key.  Be careful!
+    pub fn spk_secret(&self) -> SecretKey {
+        convert_secret_key(&self.spk.secret).unwrap()
+    }
+
     /// Create a new one-time prekey for this participant.
     pub fn create_opk<R: CryptoRng + RngCore>(&mut self, csprng: &mut R) -> OneTimePrekey {
         let key = Keypair::generate::<Sha512, _>(csprng);

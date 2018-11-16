@@ -2,5 +2,6 @@
 
 members = [
     "crates/double-ratchet",
+    "crates/signal",
     "crates/x3dh",
 ]
