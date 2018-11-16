@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "crates/double-ratchet",
+    "crates/x3dh",
+]

@@ -1,0 +1,127 @@
+use ed25519_dalek::Keypair;
+use curve25519_dalek::edwards::CompressedEdwardsY;
+use curve25519_dalek::montgomery::MontgomeryPoint;
+use sha2::{Digest, Sha512};
+
+pub struct SecretKey([u8; 32]);
+
+impl SecretKey {
+    pub fn from_bytes(bytes: [u8; 32]) -> SecretKey {
+        SecretKey(bytes)
+    }
+
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionKey([u8; 32]);
+
+impl SessionKey {
+    pub fn new(key: [u8; 32]) -> SessionKey {
+        SessionKey(key)
+    }
+}
+
+pub struct X25519Keypair {
+    pub public: MontgomeryPoint,
+    pub secret: SecretKey,
+}
+
+pub fn convert_public_key(
+    pk: &[u8; 32],
+//ed25519_dalek::PublicKey,
+) -> Result<MontgomeryPoint, ()> {
+    let ed25519_pk_c = CompressedEdwardsY::from_slice(
+        pk//.as_bytes(),
+    );
+    let ed25519_pk = match ed25519_pk_c.decompress() {
+        Some(p) => p,
+        None => return Err(()),
+    };
+    Ok(ed25519_pk.to_montgomery())
+}
+
+pub fn convert_secret_key(
+    sk: &ed25519_dalek::SecretKey,
+) -> Result<SecretKey, ()> {
+    let mut hasher = Sha512::new();
+    hasher.input(sk.as_bytes());
+    let hash = hasher.result();
+
+    let mut x25519_sk = [0; 32];
+
+    for i in 0..32 {
+        x25519_sk[i] = hash[i];
+    }
+
+    x25519_sk[0] &= 248;
+    x25519_sk[31] &= 127;
+    x25519_sk[31] |= 64;
+
+    Ok(SecretKey(x25519_sk))
+}
+
+pub fn convert_ed25519_to_x25519(ed25519: &Keypair) -> Result<X25519Keypair, ()> {
+/*
+    let ed25519_pk_c = CompressedEdwardsY::from_slice(
+        ed25519.public.as_bytes(),
+    );
+    let ed25519_pk = match ed25519_pk_c.decompress() {
+        Some(p) => p,
+        None => return Err(()),
+    };
+    let x25519_pk = ed25519_pk.to_montgomery();
+
+    let ed25519_sk = ed25519.secret.as_bytes();
+
+    let mut hasher = Sha512::new();
+    hasher.input(ed25519_sk);
+    let hash = hasher.result();
+
+    let mut x25519_sk = [0; 32];
+
+    for i in 0..32 {
+        x25519_sk[i] = hash[i];
+    }
+
+    x25519_sk[0] &= 248;
+    x25519_sk[31] &= 127;
+    x25519_sk[31] |= 64;
+
+    Ok(X25519Keypair { secret: SecretKey(x25519_sk), public: x25519_pk })
+*/
+    let public = convert_public_key(&ed25519.public.as_bytes())?;
+    let secret = convert_secret_key(&ed25519.secret)?;
+
+    Ok(X25519Keypair { secret, public })
+}
+
+#[cfg(test)]
+mod tests {
+    use rand::OsRng;
+    use sha2::Sha512;
+    use ed25519_dalek::Keypair;
+    use x25519_dalek::generate_public;
+
+    use super::*;
+
+    #[test]
+    fn test_convert_isomorphism() {
+        let mut csprng = OsRng::new().unwrap();
+
+        let pair = Keypair::generate::<Sha512, _>(&mut csprng);
+        let conv = convert_ed25519_to_x25519(&pair).unwrap();
+
+        let regen_pub = generate_public(&conv.secret.as_bytes());
+
+        let conv_len = conv.public.as_bytes().len();
+        let regen_len = regen_pub.as_bytes().len();
+
+        assert_eq!(conv_len, regen_len);
+        for i in 0..conv_len {
+            assert_eq!(conv.public.as_bytes()[i], regen_pub.as_bytes()[i]);
+        }
+    }
+}
