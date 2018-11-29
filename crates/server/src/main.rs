@@ -4,31 +4,67 @@ extern crate futures;
 extern crate tokio;
 extern crate x3dh;
 
+use std::collections::HashMap;
+
 use capnp_rpc::{RpcSystem, twoparty, rpc_twoparty_capnp};
 use futures::{Future, Stream};
 use tokio::io::AsyncRead;
 use tokio::runtime::current_thread;
 use x3dh::keyserver;
+use x3dh::keyserver::PublicKey;
 
 mod keyserver_capnp {
     include!(concat!(env!("OUT_DIR"), "/keyserver_capnp.rs"));
 }
-
+mod relay_capnp {
+    include!(concat!(env!("OUT_DIR"), "/relay_capnp.rs"));
+}
 mod util_capnp {
     include!(concat!(env!("OUT_DIR"), "/util_capnp.rs"));
 }
 
-struct Keyserver {
+struct Server {
     server: keyserver::Keyserver,
+    mailboxes: HashMap<PublicKey, Mailbox>,
 }
 
-impl Keyserver {
-    fn new() -> Keyserver {
-        Keyserver { server: keyserver::Keyserver::new() }
+struct Mailbox {
+    handshakes: Vec<bool>,
+    messages: Vec<bool>,
+}
+
+impl Server {
+    fn new() -> Server {
+        Server {
+            server: keyserver::Keyserver::new(),
+            mailboxes: HashMap::new(),
+        }
     }
 }
 
-impl keyserver_capnp::keyserver::Server for Keyserver {
+impl relay_capnp::relay::Server for Server {
+    fn handshake(
+        &mut self,
+        params: relay_capnp::relay::HandshakeParams,
+        result: relay_capnp::relay::HandshakeResults,
+    ) -> capnp::capability::Promise<(), capnp::Error> {
+        capnp::capability::Promise::err(
+            capnp::Error::failed("implement it doofus!".to_owned())
+        )
+    }
+
+    fn send(
+        &mut self,
+        params: relay_capnp::relay::SendParams,
+        result: relay_capnp::relay::SendResults,
+    ) -> capnp::capability::Promise<(), ::capnp::Error> {
+        capnp::capability::Promise::err(
+            capnp::Error::failed("implement it doofus!".to_owned())
+        )
+    }
+}
+
+impl keyserver_capnp::keyserver::Server for Server {
     fn prekey_bundle(
         &mut self,
         params: keyserver_capnp::keyserver::PrekeyBundleParams,
@@ -222,7 +258,7 @@ pub fn main() {
     let socket = ::tokio::net::TcpListener::bind(&addr).unwrap();
 
     let server =
-        keyserver_capnp::keyserver::ToClient::new(Keyserver::new()).from_server::<::capnp_rpc::Server>();
+        keyserver_capnp::keyserver::ToClient::new(Server::new()).from_server::<::capnp_rpc::Server>();
 
     let done = socket.incoming().for_each(move |socket| {
         println!("server: Accepting incoming connection.");

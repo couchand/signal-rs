@@ -6,6 +6,7 @@ authors = ["Andrew Couch <signal-rs@andrewcou.ch>"]
 [dependencies]
 capnp = "0.8"
 capnp-rpc = "0.8"
+double-ratchet = { path = "../double-ratchet" }
 futures = "0.1"
 rand = "0.5.5"
 sha2 = "0.7"

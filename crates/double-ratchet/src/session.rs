@@ -67,6 +67,7 @@ impl<Bytes: Deref<Target=[u8]>> SessionBuilder<Bytes> {
 }
 
 /// A message header.
+#[derive(Debug, Clone)]
 pub struct Header {
     /// The public ratchet key currently in use.
     pub public_key: PublicKey,

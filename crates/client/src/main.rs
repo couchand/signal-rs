@@ -1,6 +1,7 @@
 extern crate capnp;
 #[macro_use]
 extern crate capnp_rpc;
+extern crate double_ratchet;
 extern crate futures;
 extern crate rand;
 extern crate tokio;
@@ -9,6 +10,8 @@ extern crate x3dh;
 use std::io::{Read, Write};
 
 use capnp_rpc::{RpcSystem, twoparty, rpc_twoparty_capnp};
+use double_ratchet::keys::ChainKey;
+use double_ratchet::session::SessionBuilder;
 use futures::{Future, Stream};
 use tokio::io::AsyncRead;
 use tokio::runtime::current_thread;
@@ -19,10 +22,14 @@ use x3dh::participant::Participant;
 mod keyserver_capnp {
     include!(concat!(env!("OUT_DIR"), "/keyserver_capnp.rs"));
 }
-
+mod relay_capnp {
+    include!(concat!(env!("OUT_DIR"), "/relay_capnp.rs"));
+}
 mod util_capnp {
     include!(concat!(env!("OUT_DIR"), "/util_capnp.rs"));
 }
+
+const INFO: [u8; 8] = [0xde, 0xad, 0xbe, 0xef, 0x24, 0x68, 0x13, 0x57];
 
 pub fn main() {
     use std::net::ToSocketAddrs;
@@ -215,6 +222,20 @@ pub fn main() {
         file.write_all(ek.as_bytes()).unwrap();
 
         println!("alice: Generated session key: {:?}", sk);
+
+        let bob_pk = spk.to_x25519();
+        let bob_pk = double_ratchet::keys::PublicKey::from(&bob_pk);
+        let mut session = SessionBuilder::new(
+            &INFO[..], ChainKey::from(&sk.as_bytes()[..]),
+        )
+            .connect_to(&bob_pk, &mut csprng);
+
+        let message = b"Hello, Bob!";
+        let (header, secret) = session.send(message);
+
+        // TODO: send.
+
+        println!("alice: TODO: send message: {:?} {:?}", header, secret);
     }
 
     // [If Bob] Wait until Alice writes her sharefile.
@@ -270,6 +291,24 @@ pub fn main() {
         let sk = participant.complete_exchange(&alice_key, opk_id, ek).unwrap();
 
         println!("bob: Generated session key: {:?}", sk);
+
+        let bob_pk = spk.to_x25519();
+        let bob_pk = double_ratchet::keys::PublicKey::from(&bob_pk);
+        let bob_keys = double_ratchet::keys::Keypair {
+            public: bob_pk,
+            secret: double_ratchet::keys::SecretKey::from(
+                &participant.spk_secret().as_bytes()[..]
+            ),
+        };
+
+        let session = SessionBuilder::new(
+            &INFO[..], ChainKey::from(&sk.as_bytes()[..]),
+        )
+            .accept_with(bob_keys);
+
+        // TODO: receive message
+
+        println!("bob: TODO: Receive message!");
     }
 
     // ... something something rest of the exchange
