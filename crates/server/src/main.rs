@@ -30,7 +30,7 @@ impl keyserver_capnp::keyserver::Server for Keyserver {
         params: keyserver_capnp::keyserver::PrekeyBundleParams,
         mut result: keyserver_capnp::keyserver::PrekeyBundleResults,
     ) -> capnp::capability::Promise<(), capnp::Error> {
-        println!("Responding to prekeyBundle");
+        println!("server: Responding to prekeyBundle");
 
         let params = match params.get() {
             Ok(ps) => ps,
@@ -85,7 +85,7 @@ impl keyserver_capnp::keyserver::Server for Keyserver {
         params: keyserver_capnp::keyserver::UpdateIdentityParams,
         _: keyserver_capnp::keyserver::UpdateIdentityResults,
     ) -> capnp::capability::Promise<(), capnp::Error> {
-        println!("Responding to updateIdentity");
+        println!("server: Responding to updateIdentity");
 
         let params = match params.get() {
             Ok(ps) => ps,
@@ -145,7 +145,7 @@ impl keyserver_capnp::keyserver::Server for Keyserver {
         params: keyserver_capnp::keyserver::AddOpksParams,
         _: keyserver_capnp::keyserver::AddOpksResults,
     ) -> capnp::capability::Promise<(), capnp::Error> {
-        println!("Responding to addOpks");
+        println!("server: Responding to addOpks");
 
         let params = match params.get() {
             Ok(ps) => ps,
@@ -210,7 +210,7 @@ pub fn main() {
     use std::net::ToSocketAddrs;
     let args: Vec<String> = ::std::env::args().collect();
     if args.len() != 2 {
-        println!("usage: {} ADDRESS[:PORT]", args[0]);
+        eprintln!("usage: {} ADDRESS[:PORT]", args[0]);
         return;
     }
 
@@ -221,7 +221,7 @@ pub fn main() {
         keyserver_capnp::keyserver::ToClient::new(Keyserver::new()).from_server::<::capnp_rpc::Server>();
 
     let done = socket.incoming().for_each(move |socket| {
-        println!("Accepting incoming connection.");
+        println!("server: Accepting incoming connection.");
 
         socket.set_nodelay(true)?;
         let (reader, writer) = socket.split();
@@ -231,11 +231,11 @@ pub fn main() {
                                       rpc_twoparty_capnp::Side::Server, Default::default());
 
         let rpc_system = RpcSystem::new(Box::new(network), Some(server.clone().client));
-        current_thread::spawn(rpc_system.map_err(|e| println!("error: {:?}", e)));
+        current_thread::spawn(rpc_system.map_err(|e| eprintln!("server error: {:?}", e)));
         Ok(())
     });
 
-    println!("Listening on {}...", args[1]);
+    println!("server: Listening on {}...", args[1]);
 
     current_thread::block_on_all(done).unwrap();
 }

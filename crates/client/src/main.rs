@@ -24,7 +24,7 @@ pub fn main() {
     use std::net::ToSocketAddrs;
     let args: Vec<String> = std::env::args().collect();
     if args.len() != 5 {
-        println!("usage: {} <alice|bob> ADDRESS[:PORT] [KEYFILE] [SHAREFILE]", args[0]);
+        eprintln!("usage: {} <alice|bob> ADDRESS[:PORT] [KEYFILE] [SHAREFILE]", args[0]);
         return;
     }
 
@@ -51,7 +51,7 @@ pub fn main() {
     let mut csprng = ChaChaRng::from_rng(OsRng::new().unwrap()).unwrap();
 
     // Initialize my keys
-    println!("Intializing my keys...");
+    println!("{}: Intializing my keys...", actor);
     let mut participant = Participant::new(&mut csprng);
 
     let ik = participant.ik();
@@ -60,18 +60,10 @@ pub fn main() {
 
     let opk = participant.create_opk(&mut csprng);
 
-    // [If Bob] Save public key so it can be used to start Alice
-
-    if actor == "bob" {
-        println!("Saving public key to {}", bob_keyfile);
-        let mut file = std::fs::File::create(bob_keyfile.clone()).unwrap();
-        file.write_all(ik.as_bytes()).unwrap();
-    }
-
     // Send them to the server
 
     {
-        println!("Registering identity with keyserver");
+        println!("{}: Registering identity with keyserver", actor);
 
         let mut request = server.update_identity_request();
 
@@ -89,7 +81,7 @@ pub fn main() {
     }
 
     {
-        println!("Registering one-time prekey with keyserver");
+        println!("{}: Registering one-time prekey with keyserver", actor);
 
         let mut request = server.add_opks_request();
 
@@ -111,24 +103,45 @@ pub fn main() {
         runtime.block_on(request.send().promise).unwrap();
     }
 
+    // [If Bob] Save public key so it can be used to start Alice
+
+    if actor == "bob" {
+        println!("bob: Saving public key to {}", bob_keyfile);
+        let mut file = std::fs::File::create(bob_keyfile.clone()).unwrap();
+        file.write_all(ik.as_bytes()).unwrap();
+    }
+
     // [If Alice] Request Bob's prekey bundle from the server
 
     if actor == "alice" {
-        println!("Loading Bob's key from {}", bob_keyfile);
+        println!("alice: Loading Bob's key from {}", bob_keyfile);
 
-        let bob_key = {
+        let bob_key = loop {
+            let file = match std::fs::File::open(bob_keyfile.clone()) {
+                Err(e) => {
+                    if let std::io::ErrorKind::NotFound = e.kind() {
+                        continue;
+                    }
+                    eprintln!("error opening file: {:?}", e);
+                    panic!();
+                },
+                Ok(f) => f,
+            };
             let mut file = std::fs::File::open(bob_keyfile.clone()).unwrap();
             let mut buf_reader = std::io::BufReader::new(file);
             let mut bob_key_bytes = Vec::with_capacity(32);
             buf_reader.read_to_end(&mut bob_key_bytes).unwrap();
+
+            if bob_key_bytes.len() != 32 { continue; }
+
             let mut bob_key = [0; 32];
             bob_key.copy_from_slice(&bob_key_bytes[0..32]);
-            bob_key.into()
+            break bob_key.into();
         };
 
         participant.add_peer(&bob_key);
 
-        println!("Requesting Bob's prekey bundle from keyserver");
+        println!("alice: Requesting Bob's prekey bundle from keyserver");
 
         let mut request = server.prekey_bundle_request();
 
@@ -174,7 +187,7 @@ pub fn main() {
 
             let prekey_bundle = PrekeyBundle { ik, spk, spk_sig, opk };
 
-            println!("Generating session key from bundle");
+            println!("alice: Generating session key from bundle");
 
             capnp::capability::Promise::ok(
                 participant.accept_bundle(prekey_bundle, &mut csprng).unwrap()
@@ -182,11 +195,7 @@ pub fn main() {
 
         })).unwrap();
 
-            println!("alice key {:?}", ik);
-            println!("opk_id {:?}", opk_id);
-            println!("ek {:?}", ek);
-
-        println!("Saving sharefile to {}", alice_sharefile);
+        println!("alice: Saving sharefile to {}", alice_sharefile);
         let mut file = std::fs::File::create(alice_sharefile.clone()).unwrap();
         file.write_all(ik.as_bytes()).unwrap();
         file.write_all(&[
@@ -201,12 +210,12 @@ pub fn main() {
         ]).unwrap();
         file.write_all(ek.as_bytes()).unwrap();
 
-        println!("Generated session key: {:?}", sk);
+        println!("alice: Generated session key: {:?}", sk);
     }
 
     // [If Bob] Wait until Alice writes her sharefile.
     if actor == "bob" {
-        println!("Waiting for Alice to write {}", alice_sharefile);
+        println!("bob: Waiting for Alice to write {}", alice_sharefile);
         let alice_share_bytes = loop {
             let file = match std::fs::File::open(alice_sharefile.clone()) {
                 Err(e) => {
@@ -219,7 +228,7 @@ pub fn main() {
                 Ok(f) => f,
             };
 
-            println!("Got Alice's sharefile, loading...");
+            println!("bob: Got Alice's sharefile, loading...");
             let mut buf_reader = std::io::BufReader::new(file);
             let mut alice_share_bytes = Vec::with_capacity(72);
             buf_reader.read_to_end(&mut alice_share_bytes).unwrap();
@@ -252,15 +261,11 @@ pub fn main() {
             ek_bytes.into()
         };
 
-        println!("Generating session key from sharefile");
-
-        println!("alice key {:?}", alice_key);
-        println!("opk_id {:?}", opk_id);
-        println!("ek {:?}", ek);
+        println!("bob: Generating session key from sharefile");
 
         let sk = participant.complete_exchange(&alice_key, opk_id, ek).unwrap();
 
-        println!("Generated session key: {:?}", sk);
+        println!("bob: Generated session key: {:?}", sk);
     }
 
     // ... something something rest of the exchange
