@@ -209,7 +209,7 @@ mod tests {
             (ik_b, spk_b, spk_b_sig, opk_b, opk_b_sig)
         };
 
-        server.add_identity(&ik_b, &spk_b, &spk_b_sig).unwrap();
+        server.update_identity(&ik_b, &spk_b, &spk_b_sig).unwrap();
         server.add_opk(&ik_b, &opk_b, &opk_b_sig).unwrap();
 
         let pkb = server.prekey_bundle(&ik_b).unwrap();
@@ -253,7 +253,7 @@ mod tests {
         };
 
         let bad_sig = Signature([0; 64]);
-        assert!(server.add_identity(&ik_b, &spk_b, &bad_sig).is_err());
+        assert!(server.update_identity(&ik_b, &spk_b, &bad_sig).is_err());
 
         server.update_identity(&ik_b, &spk_b, &spk_b_sig).unwrap();
 

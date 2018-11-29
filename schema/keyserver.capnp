@@ -1,13 +1,16 @@
 @0xb18650cec7d93286;
 
+using Util = import "util.capnp";
+using Signed = Util.Signed;
+using Maybe = Util.Maybe;
+
 interface Keyserver {
-    prekeyBundle @0 (ik: Data) -> (bundle :PrekeyBundle);
+    prekeyBundle @0 (ik :Data) -> (bundle :PrekeyBundle);
     updateIdentity @1 (ik :Data, spk :Signed(PublicKey));
     addOpks @2 (ik :Data, opks :List(Signed(OneTimePrekey)));
 }
 
 using PublicKey = Data;
-using Signature = Data;
 
 struct PrekeyBundle {
     ik @0 :PublicKey;
@@ -18,16 +21,4 @@ struct PrekeyBundle {
 struct OneTimePrekey {
     id @0 :UInt64;
     key @1 :PublicKey;
-}
-
-struct Signed(T) {
-    key @0 :T;
-    sig @1 :Signature;
-}
-
-struct Maybe(T) {
-    union {
-        none @0 :Void;
-        some @1 :T;
-    }
 }

@@ -14,6 +14,10 @@ mod keyserver_capnp {
     include!(concat!(env!("OUT_DIR"), "/keyserver_capnp.rs"));
 }
 
+mod util_capnp {
+    include!(concat!(env!("OUT_DIR"), "/util_capnp.rs"));
+}
+
 struct Keyserver {
     server: keyserver::Keyserver,
 }

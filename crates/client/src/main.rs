@@ -20,6 +20,10 @@ mod keyserver_capnp {
     include!(concat!(env!("OUT_DIR"), "/keyserver_capnp.rs"));
 }
 
+mod util_capnp {
+    include!(concat!(env!("OUT_DIR"), "/util_capnp.rs"));
+}
+
 pub fn main() {
     use std::net::ToSocketAddrs;
     let args: Vec<String> = std::env::args().collect();
@@ -169,8 +173,8 @@ pub fn main() {
             };
 
             let opk = match o.which() {
-                Ok(keyserver_capnp::maybe::Which::None(())) => None,
-                Ok(keyserver_capnp::maybe::Which::Some(o)) => {
+                Ok(util_capnp::maybe::Which::None(())) => None,
+                Ok(util_capnp::maybe::Which::Some(o)) => {
                     let o = pry!(o);
                     let id = o.get_id();
                     let key = {
