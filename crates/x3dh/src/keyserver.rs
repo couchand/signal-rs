@@ -32,6 +32,12 @@ impl PublicKey {
     }
 }
 
+impl From<[u8; 32]> for PublicKey {
+    fn from(bytes: [u8; 32]) -> PublicKey {
+        PublicKey(bytes)
+    }
+}
+
 impl From<ed25519_dalek::PublicKey> for PublicKey {
     fn from(key: ed25519_dalek::PublicKey) -> PublicKey {
         PublicKey(key.to_bytes())
@@ -45,6 +51,16 @@ impl Signature {
     fn as_dalek(&self) -> Result<ed25519_dalek::Signature, CryptoError> {
         ed25519_dalek::Signature::from_bytes(&self.0)
             .map_err(|_| CryptoError)
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl From<[u8; 64]> for Signature {
+    fn from(bytes: [u8; 64]) -> Signature {
+        Signature(bytes)
     }
 }
 
@@ -85,7 +101,7 @@ impl Keyserver {
     }
 
     /// Get the prekey bundle for a participant based on their public key.
-    pub fn get_prekey_bundle(&mut self, ik: &PublicKey) -> Option<PrekeyBundle> {
+    pub fn prekey_bundle(&mut self, ik: &PublicKey) -> Option<PrekeyBundle> {
         self.entries.get_mut(ik).map(|entry| {
             let opk = if entry.opks.len() > 0 {
                 let mine = entry.opks.pop().unwrap();
@@ -104,7 +120,7 @@ impl Keyserver {
 
     /// Add the identity of a new participant to the server, along with
     /// their initial signed prekey.
-    pub fn add_identity(
+    pub fn update_identity(
         &mut self,
         ik: &PublicKey,
         spk: &PublicKey,
@@ -121,6 +137,7 @@ impl Keyserver {
         Ok(())
     }
 
+/*
     /// Update a participant's signed prekey in the keyserver.
     pub fn update_spk(
         &mut self,
@@ -139,6 +156,7 @@ impl Keyserver {
             },
         }
     }
+*/
 
     /// Add a one-time prekey to the server for a participant.
     pub fn add_opk(
@@ -194,7 +212,7 @@ mod tests {
         server.add_identity(&ik_b, &spk_b, &spk_b_sig).unwrap();
         server.add_opk(&ik_b, &opk_b, &opk_b_sig).unwrap();
 
-        let pkb = server.get_prekey_bundle(&ik_b).unwrap();
+        let pkb = server.prekey_bundle(&ik_b).unwrap();
         let opk = pkb.opk.unwrap();
 
         assert_eq!(pkb.ik, ik_b);
@@ -237,14 +255,14 @@ mod tests {
         let bad_sig = Signature([0; 64]);
         assert!(server.add_identity(&ik_b, &spk_b, &bad_sig).is_err());
 
-        server.add_identity(&ik_b, &spk_b, &spk_b_sig).unwrap();
+        server.update_identity(&ik_b, &spk_b, &spk_b_sig).unwrap();
 
         assert!(server.add_opk(&ik_b, &opk_b, &bad_sig).is_err());
 
         server.add_opk(&ik_b, &opk_b, &opk_b_sig).unwrap();
 
-        assert!(server.update_spk(&ik_b, &spk2_b, &bad_sig).is_err());
+        assert!(server.update_identity(&ik_b, &spk2_b, &bad_sig).is_err());
 
-        server.update_spk(&ik_b, &spk2_b, &spk2_b_sig).is_err();
+        server.update_identity(&ik_b, &spk2_b, &spk2_b_sig).is_err();
     }
 }

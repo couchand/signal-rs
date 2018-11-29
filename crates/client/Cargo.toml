@@ -1,0 +1,16 @@
+[package]
+name = "client"
+version = "0.1.0"
+authors = ["Andrew Couch <signal-rs@andrewcou.ch>"]
+
+[dependencies]
+capnp = "0.8"
+capnp-rpc = "0.8"
+futures = "0.1"
+rand = "0.5.5"
+sha2 = "0.7"
+tokio = "0.1"
+x3dh = { path = "../x3dh" }
+
+[build-dependencies]
+capnpc = "0.8"
