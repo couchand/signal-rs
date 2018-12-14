@@ -357,6 +357,12 @@ impl<'a> From<&'a [u8]> for ChainKey {
     }
 }
 
+impl From<KeyMaterial> for ChainKey {
+    fn from(bytes: KeyMaterial) -> ChainKey {
+        ChainKey(bytes.0)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct SessionKey(pub(crate) [u8; 32]);
 

@@ -41,9 +41,7 @@ mod tests {
 
         let bob_keys = RatchetKeyPair::from(bob.spk_pair());
 
-        let mut alice2 = SessionBuilder::new(
-            info, ChainKey::from(&sk.as_bytes()[..]),
-        )
+        let mut alice2 = SessionBuilder::new(info, ChainKey::from(sk))
             .connect_to(&bob_keys.public, &mut csprng);
 
         let message1 = b"Hello, Bob! Nice secret channel!";
@@ -51,9 +49,7 @@ mod tests {
 
         let sk = bob.complete_exchange(&alice.ik(), opk_id, ek).unwrap();
 
-        let mut bob2 = SessionBuilder::new(
-            info, ChainKey::from(&sk.as_bytes()[..])
-        )
+        let mut bob2 = SessionBuilder::new(info, ChainKey::from(sk))
             .accept_with(bob_keys);
 
         let decrypt1 = bob2.receive(h1, &secret1, &mut csprng).unwrap();
