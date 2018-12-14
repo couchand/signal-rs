@@ -1,3 +1,5 @@
+use signal_common::error::{Error, Result};
+
 pub fn hkdf(
     salt: &[u8],
     input: &[u8],
@@ -106,7 +108,7 @@ pub fn aes256_cbc_pkcs7_decrypt<'a>(
     key: &[u8],
     iv: &[u8],
     buffer: &'a mut [u8],
-) -> Result<&'a [u8], ()> {
+) -> Result<&'a [u8]> {
     use aes::Aes256;
     use aes::block_cipher_trait::generic_array::GenericArray;
     use block_modes::{BlockMode, BlockModeIv, Cbc};
@@ -118,5 +120,5 @@ pub fn aes256_cbc_pkcs7_decrypt<'a>(
     let iv = GenericArray::from_slice(iv);
     let cipher = Aes256Cbc::new_varkey(key, iv).unwrap();
 
-    cipher.decrypt_pad(buffer).map_err(|_| ())
+    cipher.decrypt_pad(buffer).map_err(|_| Error)
 }

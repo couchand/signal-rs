@@ -3,6 +3,8 @@ use std::ops::Deref;
 
 use rand::{CryptoRng, Rng};
 
+use signal_common::error::Result;
+
 use crate::encrypt::AeadCipher;
 use crate::keys::{
     ChainKey,
@@ -143,7 +145,7 @@ impl Session {
         header: Header,
         ciphertext: &[u8],
         csprng: &mut R,
-    ) -> Result<Vec<u8>, ()> {
+    ) -> Result<Vec<u8>> {
         let key = self.receive_key(header, csprng);
         let cipher = AeadCipher::new(&b"another info"[..], key, &b"ad"[..]);
         cipher.decrypt(ciphertext)

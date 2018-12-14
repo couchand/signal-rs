@@ -5,7 +5,7 @@ pub struct Error;
 
 impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "X3DH Error")
+        write!(f, "crypto error in Signal protocol")
     }
 }
 

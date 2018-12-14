@@ -5,6 +5,8 @@ use block_modes::block_padding::Pkcs7;
 use sha2::Sha512;
 */
 
+use signal_common::error::{Error, Result};
+
 use crate::keys::MessageKey;
 use crate::util::{
     hkdf_sha512,
@@ -63,7 +65,7 @@ impl<'a> AeadCipher<'a> {
         buffer
     }
 
-    pub fn decrypt(self, ciphertext: &[u8]) -> Result<Vec<u8>, ()> {
+    pub fn decrypt(self, ciphertext: &[u8]) -> Result<Vec<u8>> {
         use orion::util::compare_ct;
 
         let msg_len = ciphertext.len();
@@ -85,7 +87,7 @@ impl<'a> AeadCipher<'a> {
 
         match compare_ct(&mac, msg_mac) {
             Ok(true) => {},
-            _ => return Err(()),
+            _ => return Err(Error),
         }
 
         let mut buffer = std::iter::repeat(0).take(enc_len).collect::<Vec<_>>();

@@ -12,6 +12,8 @@ orion = "0.9.1"
 rand = "0.5.5"
 sha2 = "0.7"
 
+signal-common = { path = "../signal-common" }
+
 [dependencies.x25519-dalek]
 version = "0.3.0"
 default-features = false
