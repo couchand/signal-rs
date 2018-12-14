@@ -56,7 +56,6 @@ decrypt messages.
 Road Map
 --------
 
-- Extract common data types for keys.
 - Make `Keyserver` trait asyncable so we can use it with a
   remote server.
 - Make a `Relayserver` trait for `double-ratchet` that
