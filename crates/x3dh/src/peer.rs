@@ -1,8 +1,8 @@
 use orion::default::hkdf;
 use rand::{CryptoRng, RngCore};
 
-use crate::error::{Error, Result};
-use crate::keys::{
+use signal_common::error::{Error, Result};
+use signal_common::keys::{
     EphemeralKeyPair,
     EphemeralKeyPublic,
     IdentityKeyPair,
@@ -117,7 +117,7 @@ fn kdf(
 mod tests {
     use rand::OsRng;
 
-    use crate::keys::PrekeyBundle;
+    use signal_common::keys::PrekeyBundle;
 
     use super::*;
 

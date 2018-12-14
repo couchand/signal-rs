@@ -5,7 +5,7 @@ use sha2::Sha512;
 use x25519_dalek::diffie_hellman;
 use x25519_dalek::generate_public;
 
-use crate::convert::convert_ed25519_to_x25519;
+use signal_common::convert::convert_ed25519_to_x25519;
 
 pub fn example() {
     let mut csprng = OsRng::new().unwrap();

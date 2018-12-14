@@ -1,16 +1,13 @@
 [package]
-name = "x3dh"
+name = "signal-common"
 version = "0.1.0"
-authors = ["Andrew Couch <andrew@cockroachlabs.com>"]
+authors = ["Andrew Couch <signal@andrewcou.ch>"]
 
 [dependencies]
 curve25519-dalek = "0.21.0"
 ed25519-dalek = "0.8.1"
-orion = "0.9.1"
 rand = "0.5.5"
 sha2 = "0.7"
-
-signal-common = { path = "../signal-common" }
 
 [dependencies.x25519-dalek]
 version = "0.3.0"

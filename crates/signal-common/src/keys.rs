@@ -26,7 +26,7 @@ impl From<ed25519_dalek::Signature> for Signature {
     }
 }
 
-#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
+#[derive(Debug, PartialEq, Eq)]
 pub struct SessionKey([u8; 32]);
 
 impl SessionKey {
@@ -51,8 +51,7 @@ pub trait PublicKey {
 }
 
 pub struct IdentityKeyPair(Ed25519KeyPair);
-#[derive(Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(test, derive(Debug))]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IdentityKeyPublic(Ed25519KeyPublic);
 
 impl IdentityKeyPair {
@@ -92,8 +91,7 @@ impl PublicKey for IdentityKeyPublic {
 }
 
 pub struct SignedPrekeyPair(Ed25519KeyPair);
-#[derive(Clone)]
-#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SignedPrekeyPublic(Ed25519KeyPublic);
 
 impl SignedPrekeyPair {
@@ -129,8 +127,7 @@ impl PublicKey for SignedPrekeyPublic {
 }
 
 pub struct OneTimePrekeyPair(u64, Ed25519KeyPair);
-#[derive(Clone)]
-#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OneTimePrekeyPublic(u64, Ed25519KeyPublic);
 
 impl OneTimePrekeyPair {
@@ -213,8 +210,7 @@ pub struct Ed25519KeyPair {
     pub public: Ed25519KeyPublic,
     secret: ed25519_dalek::SecretKey,
 }
-#[derive(Clone, PartialEq, Eq)]
-#[cfg_attr(test, derive(Debug))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ed25519KeyPublic(ed25519_dalek::PublicKey);
 
 

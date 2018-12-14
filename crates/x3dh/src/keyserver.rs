@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use crate::error::{Error, Result};
-use crate::keys::{
+use signal_common::error::{Error, Result};
+use signal_common::keys::{
     IdentityKeyPublic,
     SignedPrekeyPublic,
     OneTimePrekeyPublic,
@@ -107,7 +107,7 @@ impl Keyserver {
 mod tests {
     use rand::OsRng;
 
-    use crate::keys::{
+    use signal_common::keys::{
         IdentityKeyPair,
         SignedPrekeyPair,
         OneTimePrekeyPair,

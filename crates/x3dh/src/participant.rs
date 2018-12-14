@@ -2,9 +2,8 @@ use std::collections::HashMap;
 
 use rand::{CryptoRng, RngCore};
 
-use crate::error::{Error, Result};
-use crate::keyserver::Keyserver;
-use crate::keys::{
+use signal_common::error::{Error, Result};
+use signal_common::keys::{
     EphemeralKeyPublic,
     IdentityKeyPair,
     IdentityKeyPublic,
@@ -16,6 +15,8 @@ use crate::keys::{
     SignedPrekeyPair,
     SignedPrekeyPublic,
 };
+
+use crate::keyserver::Keyserver;
 use crate::peer::{Peer};
 
 /// The state for a participant in an X3DH system.
