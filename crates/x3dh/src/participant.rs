@@ -1,29 +1,38 @@
 use std::collections::HashMap;
 
-use curve25519_dalek::montgomery::MontgomeryPoint;
-use ed25519_dalek::Keypair;
 use rand::{CryptoRng, RngCore};
-use sha2::Sha512;
 
-use crate::convert::{convert_secret_key, SecretKey, SessionKey};
-use crate::keyserver::{CryptoError, Keyserver, OneTimePrekey, PrekeyBundle, PublicKey, Signature};
-use crate::peer::{EphemeralKey, Peer};
+use crate::error::{Error, Result};
+use crate::keyserver::Keyserver;
+use crate::keys::{
+    EphemeralKeyPublic,
+    IdentityKeyPair,
+    IdentityKeyPublic,
+    OneTimePrekeyPair,
+    OneTimePrekeyPublic,
+    PrekeyBundle,
+    Signature,
+    SessionKey,
+    SignedPrekeyPair,
+    SignedPrekeyPublic,
+};
+use crate::peer::{Peer};
 
 /// The state for a participant in an X3DH system.
 pub struct Participant {
-    ik: Keypair,
-    spk: Keypair,
+    ik: IdentityKeyPair,
+    spk: SignedPrekeyPair,
     next_opk: u64,
-    opks: HashMap<u64, SecretKey>,
-    peers: HashMap<PublicKey, Peer>,
+    opks: HashMap<u64, OneTimePrekeyPair>,
+    peers: HashMap<IdentityKeyPublic, Peer>,
 }
 
 impl Participant {
     /// Initialize a new participant, using the given randomness
     /// to generate keys.
     pub fn new<R: CryptoRng + RngCore>(csprng: &mut R) -> Participant {
-        let ik = Keypair::generate::<Sha512, _>(csprng);
-        let spk = Keypair::generate::<Sha512, _>(csprng);
+        let ik = IdentityKeyPair::generate(csprng);
+        let spk = SignedPrekeyPair::generate(csprng);
         let next_opk = 1;
         let opks = HashMap::new();
         let peers = HashMap::new();
@@ -32,103 +41,113 @@ impl Participant {
     }
 
     /// The participant's public identity key.
-    pub fn ik(&self) -> PublicKey {
-        self.ik.public.into()
+    pub fn ik(&self) -> IdentityKeyPublic {
+        self.ik.public()
     }
 
     /// The participant's signed prekey.
-    pub fn spk(&self) -> PublicKey {
-        self.spk.public.into()
+    pub fn spk(&self) -> SignedPrekeyPublic {
+        self.spk.public()
     }
 
     /// The signature for the participant's signed prekey.
     pub fn spk_sig(&self) -> Signature {
-        self.ik.sign::<Sha512>(self.spk.public.as_bytes()).into()
+        self.ik.sign(self.spk().as_bytes())
     }
 
-    /// THe participant's signed prekey secret key.  Be careful!
+    /// The participant's signed prekey secret key.  Be careful!
+    /*
     pub fn spk_secret(&self) -> SecretKey {
         convert_secret_key(&self.spk.secret).unwrap()
     }
+    */
 
     /// Create a new one-time prekey for this participant.
-    pub fn create_opk<R: CryptoRng + RngCore>(&mut self, csprng: &mut R) -> (OneTimePrekey, Signature) {
-        let key = Keypair::generate::<Sha512, _>(csprng);
+    pub fn create_opk<R: CryptoRng + RngCore>(&mut self, csprng: &mut R) -> (OneTimePrekeyPublic, Signature) {
         let id = self.next_opk;
         self.next_opk = id + 1;
 
-        self.opks.insert(id, convert_secret_key(&key.secret).unwrap());
+        let opk = OneTimePrekeyPair::generate(csprng, id);
+        let opk_public = opk.public();
 
-        let opk = OneTimePrekey {
-            id,
-            key: key.public.into(),
-        };
-        let sig = self.ik.sign::<Sha512>(opk.key.as_bytes()).into();
-        (opk, sig)
+        self.opks.insert(id, opk);
+
+        let sig = self.ik.sign(opk_public.as_bytes()).into();
+        (opk_public, sig)
     }
 
     /// Register this participant with the given key server.
-    pub fn register(&self, keyserver: &mut Keyserver) -> Result<(), CryptoError> {
-        let ik = self.ik.public.into();
-        let spk = self.spk.public.into();
-        let spk_sig = self.ik.sign::<Sha512>(self.spk.public.as_bytes()).into();
+    pub fn register(&self, keyserver: &mut Keyserver) -> Result<()> {
+        let ik = self.ik.public();
+        let spk = self.spk.public();
+        let spk_sig = self.ik.sign(spk.as_bytes());
 
         keyserver.update_identity(&ik, &spk, &spk_sig)
     }
 
     /// Add a new one-time prekey to the given key server.
-    pub fn add_opk<R: CryptoRng + RngCore>(&mut self, keyserver: &mut Keyserver, csprng: &mut R) -> Result<(), CryptoError> {
-        let ik = self.ik.public.into();
+    pub fn add_opk<R: CryptoRng + RngCore>(
+        &mut self,
+        keyserver: &mut Keyserver,
+        csprng: &mut R,
+    ) -> Result<()> {
+        let ik = self.ik.public();
         let opk = self.create_opk(csprng);
 
         keyserver.add_opk(&ik, &opk.0, &opk.1)
     }
 
     /// Add a peer, in preparation for future communication.
-    pub fn add_peer(&mut self, peer: &PublicKey) {
+    pub fn add_peer(&mut self, peer: &IdentityKeyPublic) {
         self.peers.insert(peer.clone(), Peer::HaveIdentity(peer.clone()));
     }
 
     /// Begin a key agreement exchange with the peer using the keyserver.
-    pub fn begin_exchange<R: CryptoRng + RngCore>(&mut self, peer: &PublicKey, keyserver: &mut Keyserver, csprng: &mut R) -> Result<(SessionKey, u64, EphemeralKey), CryptoError> {
+    pub fn begin_exchange<R: CryptoRng + RngCore>(
+        &mut self,
+        peer: &IdentityKeyPublic,
+        keyserver: &mut Keyserver,
+        csprng: &mut R,
+    ) -> Result<(SessionKey, u64, EphemeralKeyPublic)> {
         let bundle = match keyserver.prekey_bundle(peer) {
             Some(b) => b,
-            None => return Err(CryptoError),
+            None => return Err(Error),
         };
 
         self.accept_bundle(bundle, csprng)
     }
 
     /// Begin the key agreement exchange with the peer by accepting a prekey bundle.
-    pub fn accept_bundle<R: CryptoRng + RngCore>(&mut self, bundle: PrekeyBundle, csprng: &mut R) -> Result<(SessionKey, u64, EphemeralKey), CryptoError> {
+    pub fn accept_bundle<R: CryptoRng + RngCore>(
+        &mut self,
+        bundle: PrekeyBundle,
+        csprng: &mut R,
+    ) -> Result<(SessionKey, u64, EphemeralKeyPublic)> {
         let peer_state = match self.peers.remove(&bundle.ik) {
             Some(s) => s,
-            None => return Err(CryptoError),
+            None => return Err(Error),
         };
 
         let peer = bundle.ik.clone();
 
         let peer_state = peer_state.accept_prekey_bundle(bundle)?;
 
-        let ik_secret = convert_secret_key(&self.ik.secret)
-            .map_err(|_| CryptoError)?;
-
-        let (peer_state, sk, opk_id, ek) = peer_state.derive_key(csprng, &ik_secret)?;
+        let (peer_state, sk, opk_id, ek) = peer_state.derive_key(csprng, &self.ik)?;
 
         self.peers.insert(peer, peer_state);
 
-        Ok((sk, opk_id, ek.into()))
+        Ok((sk, opk_id, ek))
     }
 
     /// Complete a key agreement exchange previously started by a peer.
-    pub fn complete_exchange(&mut self, peer: &PublicKey, opk_id: u64, ek: EphemeralKey) -> Result<SessionKey, CryptoError> {
-        let ik_secret = convert_secret_key(&self.ik.secret)
-            .map_err(|_| CryptoError)?;
-        let spk_secret = convert_secret_key(&self.spk.secret)
-            .map_err(|_| CryptoError)?;
-
-        let opk_secret = match self.opks.remove(&opk_id) {
-            None => return Err(CryptoError),
+    pub fn complete_exchange(
+        &mut self,
+        peer: &IdentityKeyPublic,
+        opk_id: u64,
+        ek: EphemeralKeyPublic,
+    ) -> Result<SessionKey> {
+        let opk = match self.opks.remove(&opk_id) {
+            None => return Err(Error),
             Some(opk) => opk,
         };
 
@@ -137,10 +156,10 @@ impl Participant {
 
         let peer_state = match self.peers.remove(peer) {
             Some(s) => s,
-            None => return Err(CryptoError),
+            None => return Err(Error),
         };
 
-        let (peer_state, sk) = peer_state.match_key(&ik_secret, &spk_secret, &opk_secret, &ek)?;
+        let (peer_state, sk) = peer_state.match_key(&self.ik, &self.spk, &opk, &ek)?;
 
         self.peers.insert(peer.clone(), peer_state);
 

@@ -15,19 +15,6 @@ impl SecretKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SessionKey([u8; 32]);
-
-impl SessionKey {
-    pub fn new(key: [u8; 32]) -> SessionKey {
-        SessionKey(key)
-    }
-
-    pub fn as_bytes(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-
 pub struct X25519Keypair {
     pub public: MontgomeryPoint,
     pub secret: SecretKey,
@@ -68,34 +55,6 @@ pub fn convert_secret_key(
 }
 
 pub fn convert_ed25519_to_x25519(ed25519: &Keypair) -> Result<X25519Keypair, ()> {
-/*
-    let ed25519_pk_c = CompressedEdwardsY::from_slice(
-        ed25519.public.as_bytes(),
-    );
-    let ed25519_pk = match ed25519_pk_c.decompress() {
-        Some(p) => p,
-        None => return Err(()),
-    };
-    let x25519_pk = ed25519_pk.to_montgomery();
-
-    let ed25519_sk = ed25519.secret.as_bytes();
-
-    let mut hasher = Sha512::new();
-    hasher.input(ed25519_sk);
-    let hash = hasher.result();
-
-    let mut x25519_sk = [0; 32];
-
-    for i in 0..32 {
-        x25519_sk[i] = hash[i];
-    }
-
-    x25519_sk[0] &= 248;
-    x25519_sk[31] &= 127;
-    x25519_sk[31] |= 64;
-
-    Ok(X25519Keypair { secret: SecretKey(x25519_sk), public: x25519_pk })
-*/
     let public = convert_public_key(&ed25519.public.as_bytes())?;
     let secret = convert_secret_key(&ed25519.secret)?;
 

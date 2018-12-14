@@ -14,6 +14,8 @@ extern crate sha2;
 extern crate x25519_dalek;
 
 pub mod convert;
+pub mod error;
+pub mod keys;
 pub mod keyserver;
 pub mod participant;
 pub mod peer;
