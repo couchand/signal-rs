@@ -465,26 +465,15 @@ impl RatchetKeyPair {
         use curve25519_dalek::edwards::CompressedEdwardsY;
         use sha2::{Digest, Sha512};
 
+        use crate::convert::{convert_public_key, convert_secret_key};
+
         let ed_pair = ed25519_dalek::Keypair::generate::<Sha512, _>(csprng);
 
-        let public = RatchetKeyPublic(CompressedEdwardsY::from_slice(
-            ed_pair.public.as_bytes()
-        ).decompress().unwrap().to_montgomery());
-
-        let secret = {
-            let mut hasher = Sha512::new();
-            hasher.input(ed_pair.secret.as_bytes());
-            let hash = hasher.result();
-
-            let mut secret = [0; 32];
-            secret.copy_from_slice(&hash[..32]);
-
-            secret[0] &= 248;
-            secret[31] &= 127;
-            secret[31] |= 64;
-
-            RatchetKeySecret(secret)
-        };
+        // TODO: not unwrap
+        let public = convert_public_key(&ed_pair.public.as_bytes()).unwrap();
+        let public = RatchetKeyPublic(public);
+        let secret = convert_secret_key(&ed_pair.secret).unwrap();
+        let secret = RatchetKeySecret(secret.0);
 
         RatchetKeyPair { public, secret }
     }

@@ -5,7 +5,7 @@ use sha2::{Digest, Sha512};
 
 use crate::error::{Error, Result};
 
-pub struct SecretKey([u8; 32]);
+pub struct SecretKey(pub(crate) [u8; 32]);
 
 impl SecretKey {
     pub fn from_bytes(bytes: [u8; 32]) -> SecretKey {
