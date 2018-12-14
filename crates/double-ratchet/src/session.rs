@@ -178,6 +178,7 @@ impl Session {
         let mk = self.ratchet.next_receiving_key().1;
         let n = self.nr;
         self.nr += 1;
+        // TODO: is this unwrap sound?
         self.mk_skipped.insert((self.last_peer_key.clone().unwrap(), n), mk);
     }
 

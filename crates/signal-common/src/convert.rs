@@ -3,6 +3,8 @@ use curve25519_dalek::edwards::CompressedEdwardsY;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use sha2::{Digest, Sha512};
 
+use crate::error::{Error, Result};
+
 pub struct SecretKey([u8; 32]);
 
 impl SecretKey {
@@ -22,21 +24,18 @@ pub struct X25519Keypair {
 
 pub fn convert_public_key(
     pk: &[u8; 32],
-//ed25519_dalek::PublicKey,
-) -> Result<MontgomeryPoint, ()> {
-    let ed25519_pk_c = CompressedEdwardsY::from_slice(
-        pk//.as_bytes(),
-    );
+) -> Result<MontgomeryPoint> {
+    let ed25519_pk_c = CompressedEdwardsY::from_slice(pk);
     let ed25519_pk = match ed25519_pk_c.decompress() {
         Some(p) => p,
-        None => return Err(()),
+        None => return Err(Error),
     };
     Ok(ed25519_pk.to_montgomery())
 }
 
 pub fn convert_secret_key(
     sk: &ed25519_dalek::SecretKey,
-) -> Result<SecretKey, ()> {
+) -> Result<SecretKey> {
     let mut hasher = Sha512::new();
     hasher.input(sk.as_bytes());
     let hash = hasher.result();
@@ -54,7 +53,7 @@ pub fn convert_secret_key(
     Ok(SecretKey(x25519_sk))
 }
 
-pub fn convert_ed25519_to_x25519(ed25519: &Keypair) -> Result<X25519Keypair, ()> {
+pub fn convert_ed25519_to_x25519(ed25519: &Keypair) -> Result<X25519Keypair> {
     let public = convert_public_key(&ed25519.public.as_bytes())?;
     let secret = convert_secret_key(&ed25519.secret)?;
 
