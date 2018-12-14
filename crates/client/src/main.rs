@@ -4,23 +4,31 @@ extern crate capnp_rpc;
 extern crate futures;
 extern crate rand;
 extern crate tokio;
+
+extern crate signal_common;
 extern crate x3dh;
 
 use std::io::{Read, Write};
 
 use capnp_rpc::{RpcSystem, twoparty, rpc_twoparty_capnp};
-use futures::{Future, Stream};
+use futures::Future;
 use tokio::io::AsyncRead;
-use tokio::runtime::current_thread;
-use x3dh::keyserver;
-use x3dh::keyserver::{OneTimePrekey, PrekeyBundle};
+
+use signal_common::keys::{
+    EphemeralKeyPublic,
+    IdentityKeyPublic,
+    OneTimePrekeyPublic,
+    PrekeyBundle,
+    SignedPrekeyPublic,
+    Signature,
+};
 use x3dh::participant::Participant;
 
-mod keyserver_capnp {
+pub mod keyserver_capnp {
     include!(concat!(env!("OUT_DIR"), "/keyserver_capnp.rs"));
 }
 
-mod util_capnp {
+pub mod util_capnp {
     include!(concat!(env!("OUT_DIR"), "/util_capnp.rs"));
 }
 
@@ -78,7 +86,7 @@ pub fn main() {
 
             let mut s = body.init_spk();
             s.set_key(spk.as_bytes()).unwrap();
-            s.set_sig(spk_sig.as_bytes());
+            s.set_sig(&spk_sig.to_bytes());
         }
 
         runtime.block_on(request.send().promise).unwrap();
@@ -97,11 +105,11 @@ pub fn main() {
             let mut os = body.init_opks(1);
 
             let mut o = os.reborrow().get(0);
-            o.set_sig(opk.1.as_bytes());
+            o.set_sig(&opk.1.to_bytes());
 
             let mut o = o.init_key();
-            o.set_id(opk.0.id);
-            o.set_key(opk.0.key.as_bytes());
+            o.set_id(opk.0.index());
+            o.set_key(opk.0.as_bytes());
         }
 
         runtime.block_on(request.send().promise).unwrap();
@@ -121,7 +129,7 @@ pub fn main() {
         println!("alice: Loading Bob's key from {}", bob_keyfile);
 
         let bob_key = loop {
-            let file = match std::fs::File::open(bob_keyfile.clone()) {
+            let mut file = match std::fs::File::open(bob_keyfile.clone()) {
                 Err(e) => {
                     if let std::io::ErrorKind::NotFound = e.kind() {
                         continue;
@@ -131,7 +139,6 @@ pub fn main() {
                 },
                 Ok(f) => f,
             };
-            let mut file = std::fs::File::open(bob_keyfile.clone()).unwrap();
             let mut buf_reader = std::io::BufReader::new(file);
             let mut bob_key_bytes = Vec::with_capacity(32);
             buf_reader.read_to_end(&mut bob_key_bytes).unwrap();
@@ -140,7 +147,7 @@ pub fn main() {
 
             let mut bob_key = [0; 32];
             bob_key.copy_from_slice(&bob_key_bytes[0..32]);
-            break bob_key.into();
+            break IdentityKeyPublic::from_bytes(bob_key.into()).unwrap();
         };
 
         participant.add_peer(&bob_key);
@@ -159,17 +166,17 @@ pub fn main() {
             let ik = {
                 let mut ik = [0; 32];
                 ik.copy_from_slice(&pry!(response.get_ik())[0..32]);
-                ik.into()
+                IdentityKeyPublic::from_bytes(ik.into()).unwrap()
             };
             let spk = {
                 let mut spk = [0; 32];
                 spk.copy_from_slice(&pry!(s.get_key())[0..32]);
-                spk.into()
+                SignedPrekeyPublic::from_bytes(spk.into()).unwrap()
             };
             let spk_sig = {
                 let mut spk_sig = [0; 64];
                 spk_sig.copy_from_slice(&pry!(s.get_sig())[0..64]);
-                spk_sig.into()
+                Signature::from_bytes(spk_sig.into()).unwrap()
             };
 
             let opk = match o.which() {
@@ -182,12 +189,21 @@ pub fn main() {
                         opk.copy_from_slice(&pry!(o.get_key())[0..32]);
                         opk.into()
                     };
-                    Some(OneTimePrekey { id, key })
+                    match OneTimePrekeyPublic::from_bytes(id, key) {
+                        Ok(opk) => Some(opk),
+                        _ => return capnp::capability::Promise::err(
+                            capnp::Error::failed("unable to get OPK".to_owned()),
+                        ),
+                    }
                 },
-                Err(e) => return capnp::capability::Promise::err(
+                Err(_) => return capnp::capability::Promise::err(
                     capnp::Error::failed("Bad Request".to_owned()),
                 ),
             };
+
+            if opk.is_none() {
+                panic!("Empty OPK not yet supported!!!!");
+            }
 
             let prekey_bundle = PrekeyBundle { ik, spk, spk_sig, opk };
 
@@ -245,7 +261,7 @@ pub fn main() {
         let alice_key = {
             let mut alice_key = [0; 32];
             alice_key.copy_from_slice(&alice_share_bytes[0..32]);
-            alice_key.into()
+            IdentityKeyPublic::from_bytes(alice_key).unwrap()
         };
         let opk_id = {
             let b = &alice_share_bytes[32..40];
@@ -262,7 +278,7 @@ pub fn main() {
         let ek = {
             let mut ek_bytes = [0; 32];
             ek_bytes.copy_from_slice(&alice_share_bytes[40..72]);
-            ek_bytes.into()
+            EphemeralKeyPublic::from_bytes(ek_bytes).unwrap()
         };
 
         println!("bob: Generating session key from sharefile");

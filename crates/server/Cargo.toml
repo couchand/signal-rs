@@ -8,6 +8,8 @@ capnp = "0.8"
 capnp-rpc = "0.8"
 futures = "0.1"
 tokio = "0.1"
+
+signal-common = { path = "../signal-common" }
 x3dh = { path = "../x3dh" }
 
 [build-dependencies]

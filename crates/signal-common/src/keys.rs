@@ -84,6 +84,10 @@ impl IdentityKeyPublic {
         self.0.to_bytes()
     }
 
+    pub fn as_bytes(&self) -> &[u8] {
+        self.0.as_bytes()
+    }
+
     pub fn verify(&self, msg: &[u8], sig: &Signature) -> Result<()> {
         self.0.verify(msg, sig)
     }

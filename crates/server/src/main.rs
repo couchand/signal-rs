@@ -2,19 +2,28 @@ extern crate capnp;
 extern crate capnp_rpc;
 extern crate futures;
 extern crate tokio;
+
+extern crate signal_common;
 extern crate x3dh;
 
 use capnp_rpc::{RpcSystem, twoparty, rpc_twoparty_capnp};
 use futures::{Future, Stream};
 use tokio::io::AsyncRead;
 use tokio::runtime::current_thread;
+
+use signal_common::keys::{
+    IdentityKeyPublic,
+    OneTimePrekeyPublic,
+    SignedPrekeyPublic,
+    Signature,
+};
 use x3dh::keyserver;
 
-mod keyserver_capnp {
+pub mod keyserver_capnp {
     include!(concat!(env!("OUT_DIR"), "/keyserver_capnp.rs"));
 }
 
-mod util_capnp {
+pub mod util_capnp {
     include!(concat!(env!("OUT_DIR"), "/util_capnp.rs"));
 }
 
@@ -46,13 +55,17 @@ impl keyserver_capnp::keyserver::Server for Keyserver {
             Ok(ik) if ik.len() == 32 => {
                 let mut arr = [0; 32];
                 arr.copy_from_slice(ik);
-                arr.into()
+                match IdentityKeyPublic::from_bytes(arr) {
+                    Ok(ik) => ik,
+                    _ => return capnp::capability::Promise::err(
+                        capnp::Error::failed(format!("Unable to get IK."))
+                    ),
+                }
             },
             _ => return capnp::capability::Promise::err(
                 capnp::Error::failed(format!("Unable to get IK."))
             ),
         };
-        use x3dh::keyserver::Keyserver;
         match self.server.prekey_bundle(&ik) {
             Some(bundle) => {
                 let mut b = result.get().init_bundle();
@@ -62,8 +75,8 @@ impl keyserver_capnp::keyserver::Server for Keyserver {
                 {
                     let mut s = b.reborrow().init_spk();
 
-                    s.set_key(bundle.spk.as_bytes());
-                    s.set_sig(bundle.spk_sig.as_bytes());
+                    s.set_key(bundle.spk.as_bytes()).unwrap();
+                    s.set_sig(&bundle.spk_sig.to_bytes());
                 }
 
                 match bundle.opk {
@@ -71,8 +84,8 @@ impl keyserver_capnp::keyserver::Server for Keyserver {
                     Some(opk) => {
                         let mut o = b.init_opk().init_some();
 
-                        o.set_id(opk.id);
-                        o.set_key(opk.key.as_bytes());
+                        o.set_id(opk.index());
+                        o.set_key(opk.as_bytes());
                     },
                 }
 
@@ -101,7 +114,12 @@ impl keyserver_capnp::keyserver::Server for Keyserver {
             Ok(k) if k.len() == 32 => {
                 let mut arr = [0; 32];
                 arr.copy_from_slice(k);
-                arr.into()
+                match IdentityKeyPublic::from_bytes(arr) {
+                    Ok(ik) => ik,
+                    _ => return capnp::capability::Promise::err(
+                        capnp::Error::failed(format!("Unable to get IK."))
+                    ),
+                }
             },
             _ => return capnp::capability::Promise::err(
                 capnp::Error::failed(format!("Unable to get IK."))
@@ -126,7 +144,19 @@ impl keyserver_capnp::keyserver::Server for Keyserver {
                     karr.copy_from_slice(key);
                     let mut sarr = [0; 64];
                     sarr.copy_from_slice(sig);
-                    (karr.into(), sarr.into())
+                    let spk = match SignedPrekeyPublic::from_bytes(karr) {
+                        Ok(spk) => spk,
+                        _ => return capnp::capability::Promise::err(
+                            capnp::Error::failed(format!("Unable to get SPK."))
+                        ),
+                    };
+                    let spk_sig = match Signature::from_bytes(sarr) {
+                        Ok(spk_sig) => spk_sig,
+                        _ => return capnp::capability::Promise::err(
+                            capnp::Error::failed(format!("Unable to get SPK sig."))
+                        ),
+                    };
+                    (spk, spk_sig)
                 } else {
                     return capnp::capability::Promise::err(
                         capnp::Error::failed(format!("Unable to get SPK."))
@@ -138,8 +168,7 @@ impl keyserver_capnp::keyserver::Server for Keyserver {
             ),
         };
 
-        use x3dh::keyserver::Keyserver;
-        self.server.update_identity(&ik, &spk, &spk_sig);
+        self.server.update_identity(&ik, &spk, &spk_sig).unwrap();
 
         capnp::capability::Promise::ok(())
     }
@@ -161,7 +190,12 @@ impl keyserver_capnp::keyserver::Server for Keyserver {
             Ok(ik) if ik.len() == 32 => {
                 let mut arr = [0; 32];
                 arr.copy_from_slice(ik);
-                arr.into()
+                match IdentityKeyPublic::from_bytes(arr) {
+                    Ok(ik) => ik,
+                    _ => return capnp::capability::Promise::err(
+                        capnp::Error::failed(format!("Unable to get IK."))
+                    ),
+                }
             },
             _ => return capnp::capability::Promise::err(
                 capnp::Error::failed(format!("Unable to get IK."))
@@ -199,12 +233,17 @@ impl keyserver_capnp::keyserver::Server for Keyserver {
 
             let mut new_key = [0; 32];
             new_key.copy_from_slice(key);
-            let opk = keyserver::OneTimePrekey { id, key: new_key.into() };
+            let opk = OneTimePrekeyPublic::from_bytes(id, new_key).unwrap();
 
             let mut new_sig = [0; 64];
             new_sig.copy_from_slice(sig);
-            use x3dh::keyserver::Keyserver;
-            self.server.add_opk(&ik, &opk, &new_sig.into());
+            let opk_sig = match Signature::from_bytes(new_sig) {
+                Ok(opk_sig) => opk_sig,
+                _ => return capnp::capability::Promise::err(
+                    capnp::Error::failed(format!("Unable to get OPK sig."))
+                ),
+            };
+            self.server.add_opk(&ik, &opk, &opk_sig).unwrap();
         }
         capnp::capability::Promise::ok(())
     }
