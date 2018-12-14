@@ -11,6 +11,7 @@ rand = "0.5.5"
 sha2 = "0.7"
 tokio = "0.1"
 
+double-ratchet = { path = "../double-ratchet" }
 signal-common = { path = "../signal-common" }
 x3dh = { path = "../x3dh" }
 

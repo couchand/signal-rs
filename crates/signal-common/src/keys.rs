@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use rand::{CryptoRng, RngCore};
 
-use crate::error::Result;
+use crate::error::{Error, Result};
 
 // TODO: elsewhere?
 #[derive(Clone)]
@@ -444,6 +444,32 @@ impl<'a> From<&'a [u8]> for RatchetKeySecret {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RatchetKeyPublic(pub(crate) MontgomeryPoint);
 
+impl RatchetKeyPublic {
+    pub fn from_bytes(bytes: [u8; 32]) -> Result<RatchetKeyPublic> {
+        use curve25519_dalek::edwards::CompressedEdwardsY;
+        Ok(RatchetKeyPublic(
+            CompressedEdwardsY::from_slice(&bytes[..])
+                .decompress()
+                .ok_or(Error)?
+                .to_montgomery()
+        ))
+    }
+
+    pub fn to_bytes(&self) -> [u8; 32] {
+        let ed = match self.0.to_edwards(0) {
+            Some(e) => e,
+            None => {
+                match self.0.to_edwards(1) {
+                    Some(e) => e,
+                    None => panic!("i hope we can't actually panic here!"),
+                }
+            },
+        };
+
+        ed.compress().to_bytes()
+    }
+}
+
 impl std::ops::Deref for RatchetKeyPublic {
     type Target = MontgomeryPoint;
 
@@ -461,6 +487,14 @@ impl Hash for RatchetKeyPublic {
 impl<'a> From<&'a MontgomeryPoint> for RatchetKeyPublic {
     fn from(point: &MontgomeryPoint) -> RatchetKeyPublic {
         RatchetKeyPublic(point.clone())
+    }
+}
+
+impl<'a> From<&'a SignedPrekeyPublic> for RatchetKeyPublic {
+    fn from(spk: &'a SignedPrekeyPublic) -> RatchetKeyPublic {
+        use crate::convert::convert_public_key;
+        let public = convert_public_key(&spk.to_bytes()).unwrap();
+        RatchetKeyPublic(public)
     }
 }
 
