@@ -1,14 +1,16 @@
 extern crate curve25519_dalek;
-extern crate double_ratchet;
 extern crate rand;
+
+extern crate double_ratchet;
+extern crate signal_common;
 extern crate x3dh;
 
 #[cfg(test)]
 mod tests {
-    use curve25519_dalek::edwards::CompressedEdwardsY;
-    use double_ratchet::keys::{ChainKey, Keypair, PublicKey, SecretKey};
-    use double_ratchet::session::SessionBuilder;
     use rand::OsRng;
+
+    use double_ratchet::session::SessionBuilder;
+    use signal_common::keys::{ChainKey, RatchetKeyPair};
     use x3dh::keyserver::Keyserver;
     use x3dh::participant::Participant;
 
@@ -37,25 +39,17 @@ mod tests {
 
         let info = &b"foobar!"[..];
 
-        let bob_public = PublicKey::from(
-            &CompressedEdwardsY::from_slice(bob.spk().as_bytes())
-                .decompress().unwrap().to_montgomery()
-        );
+        let bob_keys = RatchetKeyPair::from(bob.spk_pair());
 
         let mut alice2 = SessionBuilder::new(
             info, ChainKey::from(&sk.as_bytes()[..]),
         )
-            .connect_to(&bob_public, &mut csprng);
+            .connect_to(&bob_keys.public, &mut csprng);
 
         let message1 = b"Hello, Bob! Nice secret channel!";
         let (h1, secret1) = alice2.send(message1);
 
         let sk = bob.complete_exchange(&alice.ik(), opk_id, ek).unwrap();
-
-        let bob_keys = Keypair {
-            public: bob_public,
-            secret: SecretKey::from(&bob.spk_secret().as_bytes()[..]),
-        };
 
         let mut bob2 = SessionBuilder::new(
             info, ChainKey::from(&sk.as_bytes()[..])

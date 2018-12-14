@@ -462,9 +462,7 @@ pub struct RatchetKeyPair {
 
 impl RatchetKeyPair {
     pub fn generate<R: CryptoRng + RngCore>(csprng: &mut R) -> RatchetKeyPair {
-        use curve25519_dalek::edwards::CompressedEdwardsY;
-        use sha2::{Digest, Sha512};
-
+        use sha2::Sha512;
         use crate::convert::{convert_public_key, convert_secret_key};
 
         let ed_pair = ed25519_dalek::Keypair::generate::<Sha512, _>(csprng);
@@ -473,6 +471,20 @@ impl RatchetKeyPair {
         let public = convert_public_key(&ed_pair.public.as_bytes()).unwrap();
         let public = RatchetKeyPublic(public);
         let secret = convert_secret_key(&ed_pair.secret).unwrap();
+        let secret = RatchetKeySecret(secret.0);
+
+        RatchetKeyPair { public, secret }
+    }
+}
+
+impl<'a> From<&'a SignedPrekeyPair> for RatchetKeyPair {
+    fn from(spk: &'a SignedPrekeyPair) -> RatchetKeyPair {
+        use crate::convert::{convert_public_key, convert_secret_key};
+
+        // TODO: not unwrap
+        let public = convert_public_key(&spk.0.public.0.to_bytes()).unwrap();
+        let public = RatchetKeyPublic(public);
+        let secret = convert_secret_key(&spk.0.secret).unwrap();
         let secret = RatchetKeySecret(secret.0);
 
         RatchetKeyPair { public, secret }

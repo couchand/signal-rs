@@ -57,11 +57,9 @@ impl Participant {
     }
 
     /// The participant's signed prekey secret key.  Be careful!
-    /*
-    pub fn spk_secret(&self) -> SecretKey {
-        convert_secret_key(&self.spk.secret).unwrap()
+    pub fn spk_pair(&self) -> &SignedPrekeyPair {
+        &self.spk
     }
-    */
 
     /// Create a new one-time prekey for this participant.
     pub fn create_opk<R: CryptoRng + RngCore>(&mut self, csprng: &mut R) -> (OneTimePrekeyPublic, Signature) {
