@@ -15,7 +15,6 @@ extern crate x25519_dalek;
 
 extern crate signal_common;
 
-pub mod keys;
 pub mod chains;
 pub mod encrypt;
 pub mod ratchet;

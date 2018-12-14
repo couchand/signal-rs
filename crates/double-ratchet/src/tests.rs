@@ -1,4 +1,5 @@
-use super::keys::*;
+use signal_common::keys::*;
+
 use super::chains::*;
 use super::ratchet::*;
 use super::session::*;

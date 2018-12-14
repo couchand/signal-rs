@@ -1,4 +1,5 @@
-use crate::keys::{ChainKey, SessionKey, MessageKey};
+use signal_common::keys::{ChainKey, SessionKey, MessageKey};
+
 use crate::util::{hkdf, hmac};
 
 pub trait Kdf {

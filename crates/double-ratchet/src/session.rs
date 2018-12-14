@@ -4,14 +4,14 @@ use std::ops::Deref;
 use rand::{CryptoRng, Rng};
 
 use signal_common::error::Result;
-
-use crate::encrypt::AeadCipher;
-use crate::keys::{
+use signal_common::keys::{
     ChainKey,
     RatchetKeyPair,
     MessageKey,
     RatchetKeyPublic,
 };
+
+use crate::encrypt::AeadCipher;
 use crate::ratchet::DoubleRatchet;
 
 const MAX_SKIP: u32 = 777;

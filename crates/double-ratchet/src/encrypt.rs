@@ -6,8 +6,8 @@ use sha2::Sha512;
 */
 
 use signal_common::error::{Error, Result};
+use signal_common::keys::MessageKey;
 
-use crate::keys::MessageKey;
 use crate::util::{
     hkdf_sha512,
     hmac_sha512_two_slices,

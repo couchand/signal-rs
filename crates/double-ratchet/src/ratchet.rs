@@ -2,8 +2,7 @@ use std::ops::Deref;
 
 use rand::{CryptoRng, Rng};
 
-use crate::chains::Chains;
-use crate::keys::{
+use signal_common::keys::{
     ChainKey,
     RatchetKeyPair,
     MessageKey,
@@ -11,6 +10,8 @@ use crate::keys::{
     RatchetKeySecret,
     SessionKey,
 };
+
+use crate::chains::Chains;
 
 /// The state of one end of a double ratchet session.
 ///
@@ -217,5 +218,5 @@ pub fn dh(peer: &RatchetKeyPublic, me: &RatchetKeySecret) -> SessionKey {
 
     let bytes = diffie_hellman(me.as_bytes(), peer.as_bytes());
 
-    SessionKey(bytes)
+    SessionKey::from(&bytes[..])
 }
