@@ -1,7 +1,7 @@
 [package]
 name = "signal-common"
 version = "0.1.0"
-authors = ["Andrew Couch <signal@andrewcou.ch>"]
+authors = ["Andrew Dona-Couch <signal-rs@andrewcou.ch>"]
 
 [dependencies]
 curve25519-dalek = "0.21.0"
