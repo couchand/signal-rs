@@ -76,15 +76,15 @@ impl<'a> From<&'a [u8]> for MessageKey {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct SecretKey(pub(crate) [u8; 32]);
+pub struct RatchetKeySecret(pub(crate) [u8; 32]);
 
-impl SecretKey {
+impl RatchetKeySecret {
     pub fn as_bytes(&self) -> &[u8; 32] {
         &self.0
     }
 }
 
-impl std::ops::Deref for SecretKey {
+impl std::ops::Deref for RatchetKeySecret {
     type Target = [u8];
 
     fn deref(&self) -> &[u8] {
@@ -92,8 +92,8 @@ impl std::ops::Deref for SecretKey {
     }
 }
 
-impl<'a> From<&'a [u8]> for SecretKey {
-    fn from(slice: &[u8]) -> SecretKey {
+impl<'a> From<&'a [u8]> for RatchetKeySecret {
+    fn from(slice: &[u8]) -> RatchetKeySecret {
         let len = if slice.len() < 32 { slice.len() } else { 32 };
 
         let mut arr = [0; 32];
@@ -101,14 +101,14 @@ impl<'a> From<&'a [u8]> for SecretKey {
             arr[i] = slice[i];
         } 
 
-        SecretKey(arr)
+        RatchetKeySecret(arr)
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PublicKey(pub(crate) MontgomeryPoint);
+pub struct RatchetKeyPublic(pub(crate) MontgomeryPoint);
 
-impl std::ops::Deref for PublicKey {
+impl std::ops::Deref for RatchetKeyPublic {
     type Target = MontgomeryPoint;
 
     fn deref(&self) -> &MontgomeryPoint {
@@ -116,32 +116,32 @@ impl std::ops::Deref for PublicKey {
     }
 }
 
-impl Hash for PublicKey {
+impl Hash for RatchetKeyPublic {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         self.0.as_bytes().hash(hasher);
     }
 }
 
-impl<'a> From<&'a MontgomeryPoint> for PublicKey {
-    fn from(point: &MontgomeryPoint) -> PublicKey {
-        PublicKey(point.clone())
+impl<'a> From<&'a MontgomeryPoint> for RatchetKeyPublic {
+    fn from(point: &MontgomeryPoint) -> RatchetKeyPublic {
+        RatchetKeyPublic(point.clone())
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Keypair {
-    pub public: PublicKey,
-    pub secret: SecretKey,
+pub struct RatchetKeyPair {
+    pub public: RatchetKeyPublic,
+    pub secret: RatchetKeySecret,
 }
 
-impl Keypair {
-    pub fn generate<R: CryptoRng + Rng>(csprng: &mut R) -> Keypair {
+impl RatchetKeyPair {
+    pub fn generate<R: CryptoRng + Rng>(csprng: &mut R) -> RatchetKeyPair {
         use curve25519_dalek::edwards::CompressedEdwardsY;
         use sha2::{Digest, Sha512};
 
         let ed_pair = ed25519_dalek::Keypair::generate::<Sha512, _>(csprng);
 
-        let public = PublicKey(CompressedEdwardsY::from_slice(
+        let public = RatchetKeyPublic(CompressedEdwardsY::from_slice(
             ed_pair.public.as_bytes()
         ).decompress().unwrap().to_montgomery());
 
@@ -157,9 +157,9 @@ impl Keypair {
             secret[31] &= 127;
             secret[31] |= 64;
 
-            SecretKey(secret)
+            RatchetKeySecret(secret)
         };
 
-        Keypair { public, secret }
+        RatchetKeyPair { public, secret }
     }
 }

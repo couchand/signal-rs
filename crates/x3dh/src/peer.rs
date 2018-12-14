@@ -9,7 +9,7 @@ use signal_common::keys::{
     IdentityKeyPublic,
     OneTimePrekeyPair,
     SignedPrekeyPair,
-    SessionKey,
+    KeyMaterial,
     PrekeyBundle,
 };
 
@@ -45,7 +45,7 @@ impl Peer {
         self,
         csprng: &mut R,
         me: &IdentityKeyPair,
-    ) -> Result<(Peer, SessionKey, u64, EphemeralKeyPublic)> {
+    ) -> Result<(Peer, KeyMaterial, u64, EphemeralKeyPublic)> {
         match self {
             Peer::HavePrekeyBundle(bundle) => {
                 let ek = EphemeralKeyPair::generate(csprng);
@@ -75,7 +75,7 @@ impl Peer {
         spk: &SignedPrekeyPair,
         opk: &OneTimePrekeyPair,
         ek: &EphemeralKeyPublic,
-    ) -> Result<(Peer, SessionKey)> {
+    ) -> Result<(Peer, KeyMaterial)> {
         let you = match self {
             Peer::HavePrekeyBundle(bundle) => {
                 bundle.ik
@@ -98,11 +98,11 @@ impl Peer {
 }
 
 fn kdf(
-    dh1: SessionKey,
-    dh2: SessionKey,
-    dh3: SessionKey,
-    dh4: SessionKey,
-) -> SessionKey {
+    dh1: KeyMaterial,
+    dh2: KeyMaterial,
+    dh3: KeyMaterial,
+    dh4: KeyMaterial,
+) -> KeyMaterial {
     let input: Vec<u8> = std::iter::repeat(0xFF).take(32)
         .chain(dh1.as_bytes().iter().cloned())
         .chain(dh2.as_bytes().iter().cloned())

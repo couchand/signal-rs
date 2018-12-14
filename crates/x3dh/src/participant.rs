@@ -11,7 +11,7 @@ use signal_common::keys::{
     OneTimePrekeyPublic,
     PrekeyBundle,
     Signature,
-    SessionKey,
+    KeyMaterial,
     SignedPrekeyPair,
     SignedPrekeyPublic,
 };
@@ -109,7 +109,7 @@ impl Participant {
         peer: &IdentityKeyPublic,
         keyserver: &mut Keyserver,
         csprng: &mut R,
-    ) -> Result<(SessionKey, u64, EphemeralKeyPublic)> {
+    ) -> Result<(KeyMaterial, u64, EphemeralKeyPublic)> {
         let bundle = match keyserver.prekey_bundle(peer) {
             Some(b) => b,
             None => return Err(Error),
@@ -123,7 +123,7 @@ impl Participant {
         &mut self,
         bundle: PrekeyBundle,
         csprng: &mut R,
-    ) -> Result<(SessionKey, u64, EphemeralKeyPublic)> {
+    ) -> Result<(KeyMaterial, u64, EphemeralKeyPublic)> {
         let peer_state = match self.peers.remove(&bundle.ik) {
             Some(s) => s,
             None => return Err(Error),
@@ -146,7 +146,7 @@ impl Participant {
         peer: &IdentityKeyPublic,
         opk_id: u64,
         ek: EphemeralKeyPublic,
-    ) -> Result<SessionKey> {
+    ) -> Result<KeyMaterial> {
         let opk = match self.opks.remove(&opk_id) {
             None => return Err(Error),
             Some(opk) => opk,

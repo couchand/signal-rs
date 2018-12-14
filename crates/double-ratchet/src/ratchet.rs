@@ -5,10 +5,10 @@ use rand::{CryptoRng, Rng};
 use crate::chains::Chains;
 use crate::keys::{
     ChainKey,
-    Keypair,
+    RatchetKeyPair,
     MessageKey,
-    PublicKey,
-    SecretKey,
+    RatchetKeyPublic,
+    RatchetKeySecret,
     SessionKey,
 };
 
@@ -26,11 +26,11 @@ use crate::keys::{
 /// # extern crate double_ratchet;
 /// # extern crate rand;
 /// # use curve25519_dalek::edwards::CompressedEdwardsY;
-/// # use double_ratchet::keys::{ChainKey, PublicKey};
+/// # use double_ratchet::keys::{ChainKey, RatchetKeyPublic};
 /// # use double_ratchet::ratchet::DoubleRatchet;
 /// # use rand::OsRng;
 /// # let root_key = ChainKey::from(&[0; 32][..]);
-/// # let bob_public_key = PublicKey::from(&CompressedEdwardsY::from_slice(&[0; 32][..]).decompress().unwrap().to_montgomery());
+/// # let bob_public_key = RatchetKeyPublic::from(&CompressedEdwardsY::from_slice(&[0; 32][..]).decompress().unwrap().to_montgomery());
 /// # let mut csprng = OsRng::new().unwrap();
 /// #
 /// let mut alice = DoubleRatchet::<OsRng, _>::with_peer(&[1, 2, 3][..], root_key, &mut csprng, &bob_public_key);
@@ -43,11 +43,11 @@ use crate::keys::{
 /// ```ignore
 /// # extern crate double_ratchet;
 /// # extern crate rand;
-/// # use double_ratchet::keys::{ChainKey, Keypair};
+/// # use double_ratchet::keys::{ChainKey, RatchetKeyPair};
 /// # use double_ratchet::ratchet::DoubleRatchet;
 /// # use rand::OsRng;
 /// # let root_key = ChainKey::from(&[0; 32][..]);
-/// # let bob_keypair = Keypair::generate(&mut OsRng::new().unwrap());
+/// # let bob_keypair = RatchetKeyPair::generate(&mut OsRng::new().unwrap());
 /// # let mut csprng = OsRng::new().unwrap();
 /// #
 /// let mut bob = DoubleRatchet::<OsRng, _>::with_keypair(&[1, 2, 3][..], root_key, &mut csprng, bob_keypair);
@@ -62,12 +62,12 @@ use crate::keys::{
 /// # extern crate double_ratchet;
 /// # extern crate rand;
 /// # use curve25519_dalek::edwards::CompressedEdwardsY;
-/// # use double_ratchet::keys::{ChainKey, Keypair, PublicKey};
+/// # use double_ratchet::keys::{ChainKey, RatchetKeyPair, RatchetKeyPublic};
 /// # use double_ratchet::ratchet::DoubleRatchet;
 /// # use rand::OsRng;
 /// # let root_key = ChainKey::from(&[0; 32][..]);
 /// # let mut csprng = OsRng::new().unwrap();
-/// # let bob_keypair = Keypair::generate(&mut csprng);
+/// # let bob_keypair = RatchetKeyPair::generate(&mut csprng);
 /// # let mut csprng = OsRng::new().unwrap();
 /// # let mut bob = DoubleRatchet::<OsRng, _>::with_keypair(&[1, 2, 3][..], root_key, &mut csprng, bob_keypair);
 /// # let root_key = ChainKey::from(&[0; 32][..]);
@@ -89,12 +89,12 @@ use crate::keys::{
 /// # extern crate double_ratchet;
 /// # extern crate rand;
 /// # use curve25519_dalek::edwards::CompressedEdwardsY;
-/// # use double_ratchet::keys::{ChainKey, Keypair, PublicKey};
+/// # use double_ratchet::keys::{ChainKey, RatchetKeyPair, RatchetKeyPublic};
 /// # use double_ratchet::ratchet::DoubleRatchet;
 /// # use rand::OsRng;
 /// # let root_key = ChainKey::from(&[0; 32][..]);
 /// # let mut csprng = OsRng::new().unwrap();
-/// # let bob_keypair = Keypair::generate(&mut csprng);
+/// # let bob_keypair = RatchetKeyPair::generate(&mut csprng);
 /// # let mut csprng = OsRng::new().unwrap();
 /// # let mut bob = DoubleRatchet::<OsRng, _>::with_keypair(&[1, 2, 3][..], root_key, &mut csprng, bob_keypair);
 /// # let root_key = ChainKey::from(&[0; 32][..]);
@@ -115,11 +115,11 @@ use crate::keys::{
 /// # extern crate double_ratchet;
 /// # extern crate rand;
 /// # use curve25519_dalek::edwards::CompressedEdwardsY;
-/// # use double_ratchet::keys::{ChainKey, Keypair, PublicKey};
+/// # use double_ratchet::keys::{ChainKey, RatchetKeyPair, RatchetKeyPublic};
 /// # use double_ratchet::ratchet::DoubleRatchet;
 /// # use rand::OsRng;
 /// # let root_key = ChainKey::from(&[0; 32][..]);
-/// # let bob_keypair = Keypair::generate(&mut OsRng::new().unwrap());
+/// # let bob_keypair = RatchetKeyPair::generate(&mut OsRng::new().unwrap());
 /// # let mut csprng = OsRng::new().unwrap();
 /// # let mut bob = DoubleRatchet::<OsRng, _>::with_keypair(&[1, 2, 3][..], root_key, &mut csprng, bob_keypair);
 /// # let root_key = ChainKey::from(&[0; 32][..]);
@@ -131,7 +131,7 @@ use crate::keys::{
 /// ```
 pub struct DoubleRatchet {
     chains: Chains,
-    keypair: Option<Keypair>,
+    keypair: Option<RatchetKeyPair>,
 }
 
 impl DoubleRatchet {
@@ -139,7 +139,7 @@ impl DoubleRatchet {
         info: Bytes,
         root_key: ChainKey,
         csprng: &mut R,
-        peer: &PublicKey,
+        peer: &RatchetKeyPublic,
     ) -> DoubleRatchet {
         let mut session = DoubleRatchet {
             chains: Chains::init(info, root_key),
@@ -152,7 +152,7 @@ impl DoubleRatchet {
     pub fn with_keypair<Bytes: Deref<Target=[u8]>>(
         info: Bytes,
         root_key: ChainKey,
-        keypair: Keypair,
+        keypair: RatchetKeyPair,
     ) -> DoubleRatchet {
         DoubleRatchet {
             chains: Chains::init(info, root_key),
@@ -161,24 +161,24 @@ impl DoubleRatchet {
     }
 
     fn generate_keypair<R: CryptoRng + Rng>(&mut self, csprng: &mut R) {
-        self.keypair = Some(Keypair::generate(csprng));
+        self.keypair = Some(RatchetKeyPair::generate(csprng));
     }
 
-    fn secret(&self) -> &SecretKey {
+    fn secret(&self) -> &RatchetKeySecret {
         match self.keypair {
             None => panic!("DoubleRatchet has no secret key initialized!"),
             Some(ref keypair) => &(*keypair).secret,
         }
     }
 
-    pub fn public(&self) -> &PublicKey {
+    pub fn public(&self) -> &RatchetKeyPublic {
         match self.keypair {
             None => panic!("DoubleRatchet has no secret key initialized!"),
             Some(ref keypair) => &(*keypair).public,
         }
     }
 
-    fn half_ratchet<R: CryptoRng + Rng>(&mut self, csprng: &mut R, peer: &PublicKey) {
+    fn half_ratchet<R: CryptoRng + Rng>(&mut self, csprng: &mut R, peer: &RatchetKeyPublic) {
         if self.keypair.is_some() {
             panic!("DoubleRatchet can only perform half-ratchet on init!");
         }
@@ -189,7 +189,7 @@ impl DoubleRatchet {
         self.chains.next_sending_chain(sk);
     }
 
-    pub fn ratchet<R: CryptoRng + Rng>(&mut self, csprng: &mut R, peer: &PublicKey) {
+    pub fn ratchet<R: CryptoRng + Rng>(&mut self, csprng: &mut R, peer: &RatchetKeyPublic) {
         if self.keypair.is_none() {
             panic!("DoubleRatchet can only perform full ratchet after init!");
         }
@@ -212,7 +212,7 @@ impl DoubleRatchet {
     }
 }
 
-pub fn dh(peer: &PublicKey, me: &SecretKey) -> SessionKey {
+pub fn dh(peer: &RatchetKeyPublic, me: &RatchetKeySecret) -> SessionKey {
     use x25519_dalek::diffie_hellman;
 
     let bytes = diffie_hellman(me.as_bytes(), peer.as_bytes());

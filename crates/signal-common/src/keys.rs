@@ -27,16 +27,16 @@ impl From<ed25519_dalek::Signature> for Signature {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct SessionKey([u8; 32]);
+pub struct KeyMaterial([u8; 32]);
 
-impl SessionKey {
+impl KeyMaterial {
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
     }
 }
 
-impl From<[u8; 32]> for SessionKey {
-    fn from(bytes: [u8; 32]) -> SessionKey { SessionKey(bytes) }
+impl From<[u8; 32]> for KeyMaterial {
+    fn from(bytes: [u8; 32]) -> KeyMaterial { KeyMaterial(bytes) }
 }
 
 pub struct PrekeyBundle {
@@ -67,7 +67,7 @@ impl IdentityKeyPair {
         self.0.sign(msg)
     }
 
-    pub fn diffie_hellman<K: PublicKey>(&self, pk: &K) -> Result<SessionKey> {
+    pub fn diffie_hellman<K: PublicKey>(&self, pk: &K) -> Result<KeyMaterial> {
         self.0.diffie_hellman(pk.key())
     }
 }
@@ -103,7 +103,7 @@ impl SignedPrekeyPair {
         SignedPrekeyPublic(self.0.public.clone())
     }
 
-    pub fn diffie_hellman<K: PublicKey>(&self, pk: &K) -> Result<SessionKey> {
+    pub fn diffie_hellman<K: PublicKey>(&self, pk: &K) -> Result<KeyMaterial> {
         self.0.diffie_hellman(pk.key())
     }
 }
@@ -140,7 +140,7 @@ impl OneTimePrekeyPair {
         OneTimePrekeyPublic(self.0, self.1.public.clone())
     }
 
-    pub fn diffie_hellman<K: PublicKey>(&self, pk: &K) -> Result<SessionKey> {
+    pub fn diffie_hellman<K: PublicKey>(&self, pk: &K) -> Result<KeyMaterial> {
         self.1.diffie_hellman(pk.key())
     }
 }
@@ -183,7 +183,7 @@ impl EphemeralKeyPair {
         EphemeralKeyPublic(self.0.public.clone())
     }
 
-    pub fn diffie_hellman<K: PublicKey>(&self, pk: &K) -> Result<SessionKey> {
+    pub fn diffie_hellman<K: PublicKey>(&self, pk: &K) -> Result<KeyMaterial> {
         self.0.diffie_hellman(pk.key())
     }
 }
@@ -233,7 +233,7 @@ impl Ed25519KeyPair {
             .sign::<Sha512>(msg, &self.public.0).into()
     }
 
-    pub fn diffie_hellman(&self, peer: &Ed25519KeyPublic) -> Result<SessionKey> {
+    pub fn diffie_hellman(&self, peer: &Ed25519KeyPublic) -> Result<KeyMaterial> {
         use x25519_dalek::diffie_hellman;
         use crate::convert::{convert_public_key, convert_secret_key};
         let secret = convert_secret_key(&self.secret)?;

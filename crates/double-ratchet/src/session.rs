@@ -8,9 +8,9 @@ use signal_common::error::Result;
 use crate::encrypt::AeadCipher;
 use crate::keys::{
     ChainKey,
-    Keypair,
+    RatchetKeyPair,
     MessageKey,
-    PublicKey,
+    RatchetKeyPublic,
 };
 use crate::ratchet::DoubleRatchet;
 
@@ -47,7 +47,7 @@ impl<Bytes: Deref<Target=[u8]>> SessionBuilder<Bytes> {
 
     pub fn connect_to<R: CryptoRng + Rng>(
         self,
-        peer: &PublicKey,
+        peer: &RatchetKeyPublic,
         csprng: &mut R,
     ) -> Session {
         Session::new(
@@ -58,7 +58,7 @@ impl<Bytes: Deref<Target=[u8]>> SessionBuilder<Bytes> {
         )
     }
 
-    pub fn accept_with(self, keypair: Keypair) -> Session {
+    pub fn accept_with(self, keypair: RatchetKeyPair) -> Session {
         Session::new(
             DoubleRatchet::with_keypair(
                 self.info, self.root_key, keypair,
@@ -71,7 +71,7 @@ impl<Bytes: Deref<Target=[u8]>> SessionBuilder<Bytes> {
 /// A message header.
 pub struct Header {
     /// The public ratchet key currently in use.
-    pub public_key: PublicKey,
+    pub public_key: RatchetKeyPublic,
     /// The number of messages in the previous sending chain.
     pub prev_count: u32,
     /// The number of messages in the current sending chain.
@@ -88,15 +88,15 @@ pub struct Header {
 /// [`receive`]: #method.receive
 pub struct Session {
     ratchet: DoubleRatchet,
-    last_peer_key: Option<PublicKey>,
+    last_peer_key: Option<RatchetKeyPublic>,
     ns: u32,
     nr: u32,
     p_ns: u32,
-    mk_skipped: HashMap<(PublicKey, u32), MessageKey>,
+    mk_skipped: HashMap<(RatchetKeyPublic, u32), MessageKey>,
 }
 
 impl Session {
-    fn new(ratchet: DoubleRatchet, last_peer_key: Option<PublicKey>) -> Session {
+    fn new(ratchet: DoubleRatchet, last_peer_key: Option<RatchetKeyPublic>) -> Session {
         Session {
             ratchet,
             last_peer_key,

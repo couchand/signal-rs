@@ -72,7 +72,7 @@ fn test_mirror_double_ratchet() {
     use rand::OsRng;
 
     let info = b"foobar!";
-    let bob_keys = Keypair::generate(&mut OsRng::new().unwrap());
+    let bob_keys = RatchetKeyPair::generate(&mut OsRng::new().unwrap());
     let mut csprng = OsRng::new().unwrap();
     let mut alice = DoubleRatchet::with_peer(
         &info[..], get_rk(), &mut csprng, &bob_keys.public
@@ -130,7 +130,7 @@ fn test_mirror_session() {
     let session = || SessionBuilder::new(&info[..], get_rk());
     let mut csprng = OsRng::new().unwrap();
 
-    let bob_keys = Keypair::generate(&mut csprng);
+    let bob_keys = RatchetKeyPair::generate(&mut csprng);
 
     let mut alice = session().connect_to(&bob_keys.public, &mut csprng);
     let mut bob = session().accept_with(bob_keys);
@@ -257,7 +257,7 @@ fn test_unique_sessions() {
     let session = || SessionBuilder::new(&info[..], get_rk());
     let mut csprng = OsRng::new().unwrap();
 
-    let bob_keys = Keypair::generate(&mut csprng);
+    let bob_keys = RatchetKeyPair::generate(&mut csprng);
 
     let mut alice = session().connect_to(&bob_keys.public, &mut csprng);
     let (_, m1_a) = alice.send_key();
@@ -276,7 +276,7 @@ fn test_session_roundtrip_encrypted() {
     let session = || SessionBuilder::new(&info[..], get_rk());
     let mut csprng = OsRng::new().unwrap();
 
-    let bob_keys = Keypair::generate(&mut csprng);
+    let bob_keys = RatchetKeyPair::generate(&mut csprng);
 
     let mut alice = session().connect_to(&bob_keys.public, &mut csprng);
     let mut bob = session().accept_with(bob_keys);
