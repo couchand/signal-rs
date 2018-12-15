@@ -56,11 +56,12 @@ decrypt messages.
 Road Map
 --------
 
+- Clean up `x3dh` and `double-ratchet` public APIs & docs.
+- Get rid of any unwrap or panic!
 - Make `Keyserver` trait asyncable so we can use it with a
   remote server.
 - Make a `Relayserver` trait for `double-ratchet` that
   corresponds to the `Keyserver `trait for `x3dh`.
-- Clean up `x3dh` and `double-ratchet` public APIs & docs.
 - Complete `client` and `server` example implementations.
 - Make a little interactive chat client example.
 

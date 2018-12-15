@@ -1,3 +1,10 @@
+//! Various cryptographic utility functions.
+//!
+//! These simply wrap the actual implementations, locking
+//! in parameters and exposing an interface focused on their
+//! use in this project.  You are recommended to use the
+//! underlying functions themselves.
+
 use signal_common::error::{Error, Result};
 
 pub fn hkdf(

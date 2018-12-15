@@ -1,9 +1,9 @@
-/*use aed::Aes256;
-use aes::block_cipher_trait::generic_array::GenericArray;
-use block_modes::{BlockMode, BlockModeIv, Cbc};
-use block_modes::block_padding::Pkcs7;
-use sha2::Sha512;
-*/
+//! Encrypt and decrypt messages.
+//!
+//! This module is the workhorse of the Signal protocol.  All the rest
+//! of the song and dance is just a complicated way to get a really big
+//! number.  Here is where the rubber hits the road: we use that number
+//! to scramble up something legible and then unscramble it again later.
 
 use signal_common::error::{Error, Result};
 use signal_common::keys::MessageKey;
@@ -18,6 +18,7 @@ use crate::util::{
 const HMAC_WIDTH: usize = 64;
 const MARGIN: usize = 32;
 
+/// An implementation of Authenticated Encryption with Associated Data.
 pub struct AeadCipher<'a> {
     info: &'static [u8],
     key: MessageKey,
@@ -25,10 +26,12 @@ pub struct AeadCipher<'a> {
 }
 
 impl<'a> AeadCipher<'a> {
+    /// Initialize the cipher with the given parameters.
     pub fn new(info: &'static [u8], key: MessageKey, ad: &'a [u8]) -> AeadCipher<'a> {
         AeadCipher { info, key, ad }
     }
 
+    /// Encrypt a message with this cipher.
     pub fn encrypt(self, plaintext: &[u8]) -> Vec<u8> {
         let len = plaintext.len();
 
@@ -65,6 +68,7 @@ impl<'a> AeadCipher<'a> {
         buffer
     }
 
+    /// Decrypt a message with this cipher.
     pub fn decrypt(self, ciphertext: &[u8]) -> Result<Vec<u8>> {
         use orion::util::compare_ct;
 
