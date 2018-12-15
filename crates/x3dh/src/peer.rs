@@ -1,3 +1,9 @@
+//! The state machine of a peer connection in an X3DH exchange.
+//!
+//! The key echange forms a simple state machine, and
+//! so we model it here likewise.  This module is fairly
+//! low-level, see `Participant` for the use of this.
+
 use orion::default::hkdf;
 use rand::{CryptoRng, RngCore};
 
@@ -13,14 +19,20 @@ use signal_common::keys::{
     PrekeyBundle,
 };
 
+/// The state of a single peer.
 pub enum Peer {
+    /// We have never heard of this peer.
     Unknown,
+    /// We have this peer's identity key.
     HaveIdentity(IdentityKeyPublic),
+    /// We have a prekey bundle for this peer.
     HavePrekeyBundle(PrekeyBundle),
+    /// The key exchange has been completed.
     Connected,
 }
 
 impl Peer {
+    /// Are we connected to the peer?
     pub fn is_connected(&self) -> bool {
         match self {
             Peer::Connected => true,
@@ -28,6 +40,8 @@ impl Peer {
         }
     }
 
+    /// Are we ready to send an initial message to make a connection?
+    /// First we need the prekey bundle for the peer.
     pub fn ready_to_send(&self) -> bool {
         match self {
             Peer::HavePrekeyBundle(_) => true,
@@ -35,12 +49,16 @@ impl Peer {
         }
     }
 
+    /// We've obtained a prekey bundle for this peer, so move to
+    /// the ready to send state.
     pub fn accept_prekey_bundle(self, bundle: PrekeyBundle) -> Result<Peer> {
         bundle.ik.verify(bundle.spk.as_bytes(), &bundle.spk_sig)?;
 
         Ok(Peer::HavePrekeyBundle(bundle))
     }
 
+    /// Derive a key for this peer to use for an initial message.
+    /// Requires that we're ready to send.
     pub fn derive_key<R: CryptoRng + RngCore>(
         self,
         csprng: &mut R,
@@ -69,6 +87,7 @@ impl Peer {
         }
     }
 
+    /// Complete the key exchange initiated by the peer.
     pub fn match_key(
         self,
         ik: &IdentityKeyPair,

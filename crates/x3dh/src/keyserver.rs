@@ -1,3 +1,9 @@
+//! A key server providing escrow features for X3DH.
+//!
+//! To enable a user to initiate a key exchange with another
+//! user, even one who is offline, X3DH makes use of a key escrow
+//! server to transmit public keys between peers.
+
 use std::collections::HashMap;
 
 use signal_common::error::{Error, Result};
@@ -9,6 +15,7 @@ use signal_common::keys::{
     Signature,
 };
 
+/// An entry for a single participant in the key server.
 pub struct KeyEntry {
     spk: SignedPrekeyPublic,
     spk_sig: Signature,

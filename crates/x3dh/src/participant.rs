@@ -1,3 +1,8 @@
+//! An X3DH participant.
+//!
+//! Manages the state for a single participant, including
+//! identity key, signed prekey, one-time prekeys, and peers.
+
 use std::collections::HashMap;
 
 use rand::{CryptoRng, RngCore};
@@ -40,6 +45,8 @@ impl Participant {
 
         Participant { ik, spk, next_opk, opks, peers }
     }
+
+    // TODO: some way to serialize/deserialize a participant to storage
 
     /// The participant's public identity key.
     pub fn ik(&self) -> IdentityKeyPublic {
