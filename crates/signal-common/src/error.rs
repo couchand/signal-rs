@@ -1,5 +1,13 @@
+//! Error and result types.
+//!
+//! Configuration errors return specific information to help
+//! the developer to build correct code.  All runtime errors
+//! return the generic empty `Error` struct, because granular
+//! error reporting in cryptographic libraries can be fraught.
+
 use std::fmt;
 
+/// A runtime error in the signal protocol.
 #[derive(Clone, PartialEq, Eq)]
 pub struct Error;
 
@@ -25,11 +33,15 @@ impl From<()> for Error {
     fn from(_: ()) -> Error { Error }
 }
 
+/// A helful alias for a `Result` with our `Error`.
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Errors that arise from parameter configuration.
 #[derive(Clone, PartialEq, Eq)]
 pub enum ParameterError {
+    /// The curve specified is unsupported by this implementation.
     UnsupportedCurve,
+    /// The supplied info value is not valid ASCII.
     InvalidAscii,
 }
 
@@ -50,8 +62,12 @@ impl fmt::Display for ParameterError {
 
 impl std::error::Error for ParameterError {}
 
+/// Errors that arise during parameter configuration when using
+/// the operating system's random number generator.
 pub enum WithOsRngError {
+    /// A parameter configuration error.
     Parameter(ParameterError),
+    /// An error getting the OS random number generator.
     OsRng(rand::Error),
 }
 

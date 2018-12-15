@@ -1,3 +1,12 @@
+//! Key types used by the signal protocol.
+//!
+//! We use a number of specific type wrappers to differentiate
+//! between the many different keys we need to manage over the
+//! course of the key exchange and double ratchet.  These
+//! semantic keys ultimately wrap either a signing key or a
+//! key exchange key, but it's easier to keep them all straight
+//! this way.
+
 use std::hash::{Hash, Hasher};
 
 use curve25519_dalek::montgomery::MontgomeryPoint;
@@ -5,19 +14,29 @@ use rand::{CryptoRng, RngCore};
 
 use crate::error::{Error, Result};
 
+/// A free signature of some bytes.
+///
+/// The only signing key in this scheme is the identity key of
+/// X3DH.  The standard specifies a process of signing the
+/// signed prekey, and the extensions here also sign the one-time
+/// prekey to prove validity.  So this signature is from either
+/// an SPK or an OPK, and was signed by an IK.
 // TODO: elsewhere?
 #[derive(Clone)]
 pub struct Signature(ed25519_dalek::Signature);
 
 impl Signature {
+    /// Deserialize the provided bytes into a signature.
     pub fn from_bytes(bytes: [u8; 64]) -> Result<Signature> {
         Ok(Signature(ed25519_dalek::Signature::from_bytes(&bytes)?))
     }
 
+    /// Serialize this signature into a byte array.
     pub fn to_bytes(&self) -> [u8; 64] {
         self.0.to_bytes()
     }
 
+    /// Get a reference to the underlying dalek signature.
     pub fn as_dalek(&self) -> &ed25519_dalek::Signature {
         &self.0
     }
@@ -29,6 +48,12 @@ impl From<ed25519_dalek::Signature> for Signature {
     }
 }
 
+/// The result of performing a Diffie-Hellman key exchange.
+///
+/// Some key material.  In X3DH we combine four (or sometimes
+/// three) pieces of key material obtained from independent
+/// Diffie-Hellman exchanges, and then use the result as the
+/// root key for a Double Ratchet chain.
 #[derive(Debug, PartialEq, Eq)]
 pub struct KeyMaterial([u8; 32]);
 
@@ -42,6 +67,7 @@ impl From<[u8; 32]> for KeyMaterial {
     fn from(bytes: [u8; 32]) -> KeyMaterial { KeyMaterial(bytes) }
 }
 
+/// A prekey bundle for a peer, fetched from the keyserver.
 pub struct PrekeyBundle {
     pub ik: IdentityKeyPublic,
     pub spk: SignedPrekeyPublic,
@@ -49,45 +75,66 @@ pub struct PrekeyBundle {
     pub opk: Option<OneTimePrekeyPublic>,
 }
 
+/// A key that can participate in Diffie-Hellman.
 pub trait PublicKey {
     fn key(&self) -> &Ed25519KeyPublic;
 }
 
+/// An identity pair for a user.
+///
+/// This is used in X3DH to sign other keys to prove authenticity,
+/// as well as incorporated into Diffie-Hellman exchanges to
+/// lock the derived session key to the parties.
 pub struct IdentityKeyPair(Ed25519KeyPair);
+
+/// The public half of a user's identity key pair.
+///
+/// In X3DH this is used to identify users publicly.  It is used to
+/// request a specific peer's prekey bundle from the keyserver, and
+/// to validate out-of-band that the conversation is with the right
+/// peer.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IdentityKeyPublic(Ed25519KeyPublic);
 
 impl IdentityKeyPair {
+    /// Generate a new identity key pair with the provided source of randomness.
     pub fn generate<R: CryptoRng + RngCore>(csprng: &mut R) -> IdentityKeyPair {
         IdentityKeyPair(Ed25519KeyPair::generate(csprng))
     }
 
+    /// Get the public half of this identity key.
     pub fn public(&self) -> IdentityKeyPublic {
         IdentityKeyPublic(self.0.public.clone())
     }
 
+    /// Sign a message using this identity key.
     pub fn sign(&self, msg: &[u8]) -> Signature {
         self.0.sign(msg)
     }
 
+    /// Perform a Diffie-Hellman key exchange with the provided public key.
     pub fn diffie_hellman<K: PublicKey>(&self, pk: &K) -> Result<KeyMaterial> {
         self.0.diffie_hellman(pk.key())
     }
 }
 
 impl IdentityKeyPublic {
+    /// Deserialize the provided bytes into an identity key.
     pub fn from_bytes(bytes: [u8; 32]) -> Result<IdentityKeyPublic> {
         Ok(IdentityKeyPublic(Ed25519KeyPublic::from_bytes(bytes)?))
     }
 
+    /// Serialize this identity key into a byte array.
     pub fn to_bytes(&self) -> [u8; 32] {
         self.0.to_bytes()
     }
 
+    /// Get a view of this identity key as bytes.
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_bytes()
     }
 
+    /// Verify a message signed by this identity key.
     pub fn verify(&self, msg: &[u8], sig: &Signature) -> Result<()> {
         self.0.verify(msg, sig)
     }
@@ -97,33 +144,50 @@ impl PublicKey for IdentityKeyPublic {
     fn key(&self) -> &Ed25519KeyPublic { &self.0 }
 }
 
+/// The signed prekey pair for a user.
+///
+/// In X3DH this provides long-lived, non-identity keying material
+/// for a user.  It is always accompanied by a signature proving
+/// that the holder of the corresponding identity key was in fact
+/// the issuer of this signed prekey.
 pub struct SignedPrekeyPair(Ed25519KeyPair);
+
+/// The public half of a signed prekey.
+///
+/// This half is shared via the keyserver and distributed as a part
+/// of a user's prekey bundle.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SignedPrekeyPublic(Ed25519KeyPublic);
 
 impl SignedPrekeyPair {
+    /// Generate a new signed prekey pair with the provided source of randomness.
     pub fn generate<R: CryptoRng + RngCore>(csprng: &mut R) -> SignedPrekeyPair {
         SignedPrekeyPair(Ed25519KeyPair::generate(csprng))
     }
 
+    /// Get the public half of this signed prekey.
     pub fn public(&self) -> SignedPrekeyPublic {
         SignedPrekeyPublic(self.0.public.clone())
     }
 
+    /// Perform a Diffie-Hellman key exchange with the provided public key.
     pub fn diffie_hellman<K: PublicKey>(&self, pk: &K) -> Result<KeyMaterial> {
         self.0.diffie_hellman(pk.key())
     }
 }
 
 impl SignedPrekeyPublic {
+    /// Deserialize the provided bytes into a signed prekey.
     pub fn from_bytes(bytes: [u8; 32]) -> Result<SignedPrekeyPublic> {
         Ok(SignedPrekeyPublic(Ed25519KeyPublic::from_bytes(bytes)?))
     }
 
+    /// Serialize this signed prekey into a byte array.
     pub fn to_bytes(&self) -> [u8; 32] {
         self.0.to_bytes()
     }
 
+    /// Get a view of this signed prekey as bytes.
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_bytes()
     }
@@ -133,26 +197,42 @@ impl PublicKey for SignedPrekeyPublic {
     fn key(&self) -> &Ed25519KeyPublic { &self.0 }
 }
 
+/// A one-time prekey pair.
+///
+/// One-time prekeys provide forward secrecy from the very first
+/// message sent.  By preregistering these one-time keys, a user is
+/// able to participate in an asynchronous Diffie-Hellman exchange
+/// that uses one-time keying material on both sides, ensuring
+/// forward secrecy.
 pub struct OneTimePrekeyPair(u64, Ed25519KeyPair);
+
+/// The public half of a one-time prekey.
+///
+/// This half is shared via the keyserver and distributed as a part
+/// of a user's prekey bundle.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OneTimePrekeyPublic(u64, Ed25519KeyPublic);
 
 impl OneTimePrekeyPair {
+    /// Generate a new one-time prekey pair with the provided source of randomness.
     pub fn generate<R>(csprng: &mut R, index: u64) -> OneTimePrekeyPair
     where R: CryptoRng + RngCore {
         OneTimePrekeyPair(index, Ed25519KeyPair::generate(csprng))
     }
 
+    /// Get the public half of this one-time prekey.
     pub fn public(&self) -> OneTimePrekeyPublic {
         OneTimePrekeyPublic(self.0, self.1.public.clone())
     }
 
+    /// Perform a Diffie-Hellman key exchange with the provided public key.
     pub fn diffie_hellman<K: PublicKey>(&self, pk: &K) -> Result<KeyMaterial> {
         self.1.diffie_hellman(pk.key())
     }
 }
 
 impl OneTimePrekeyPublic {
+    /// Deserialize the provided bytes into a one-time prekey.
     pub fn from_bytes(
         index: u64,
         bytes: [u8; 32],
@@ -160,14 +240,17 @@ impl OneTimePrekeyPublic {
         Ok(OneTimePrekeyPublic(index, Ed25519KeyPublic::from_bytes(bytes)?))
     }
 
+    /// Get the key index of this one-time prekey.
     pub fn index(&self) -> u64 {
         self.0
     }
 
+    /// Serialize this one-time prekey into a byte array.
     pub fn to_bytes(&self) -> [u8; 32] {
         self.1.to_bytes()
     }
 
+    /// Get a view of this one-time prekey as bytes.
     pub fn as_bytes(&self) -> &[u8] {
         self.1.as_bytes()
     }
@@ -177,33 +260,49 @@ impl PublicKey for OneTimePrekeyPublic {
     fn key(&self) -> &Ed25519KeyPublic { &self.1 }
 }
 
+/// An ephemeral key generated for the X3DH exchange.
+///
+/// This key is the initiating party's contribution of one-time
+/// keying material.  It is used to perform Diffie-Hellman exchanges
+/// with all three (two) of the receiving party's keys.
 pub struct EphemeralKeyPair(Ed25519KeyPair);
+
+/// The public half of the ephemeral key.
+///
+/// This half is transmitted as part of the initial message
+/// after X3DH, to allow the receiving party to complete the exchange.
 #[derive(Clone)]
 pub struct EphemeralKeyPublic(Ed25519KeyPublic);
 
 impl EphemeralKeyPair {
+    /// Generate a new ephemeral key pair with the provided source of randomness.
     pub fn generate<R: CryptoRng + RngCore>(csprng: &mut R) -> EphemeralKeyPair {
         EphemeralKeyPair(Ed25519KeyPair::generate(csprng))
     }
 
+    /// Get the public half of this ephemeral key.
     pub fn public(&self) -> EphemeralKeyPublic {
         EphemeralKeyPublic(self.0.public.clone())
     }
 
+    /// Perform a Diffie-Hellman key exchange with the provided public key.
     pub fn diffie_hellman<K: PublicKey>(&self, pk: &K) -> Result<KeyMaterial> {
         self.0.diffie_hellman(pk.key())
     }
 }
 
 impl EphemeralKeyPublic {
+    /// Deserialize the provided bytes into a ephemeral key.
     pub fn from_bytes(bytes: [u8; 32]) -> Result<EphemeralKeyPublic> {
         Ok(EphemeralKeyPublic(Ed25519KeyPublic::from_bytes(bytes)?))
     }
 
+    /// Serialize this ephemeral key into a byte array.
     pub fn to_bytes(&self) -> [u8; 32] {
         self.0.to_bytes()
     }
 
+    /// Get a view of this ephemeral key as bytes.
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_bytes()
     }
@@ -213,15 +312,22 @@ impl PublicKey for EphemeralKeyPublic {
     fn key(&self) -> &Ed25519KeyPublic { &self.0 }
 }
 
+/// An Ed25519 key pair.
+///
+/// This is for the internal use of the signal crates.  It is
+/// recommended that you use the underlying dalek crates instead.
 pub struct Ed25519KeyPair {
     pub public: Ed25519KeyPublic,
     secret: ed25519_dalek::SecretKey,
 }
+
+/// The public half of an Ed25519 key pair.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ed25519KeyPublic(ed25519_dalek::PublicKey);
 
 
 impl Ed25519KeyPair {
+    /// Generate a new Ed25519 key pair with the provided source of randomness.
     pub fn generate<R: CryptoRng + RngCore>(csprng: &mut R) -> Ed25519KeyPair {
         use ed25519_dalek::Keypair;
         use sha2::Sha512;
@@ -234,12 +340,14 @@ impl Ed25519KeyPair {
 
     // TODO: some way to serialize/deserialize secret key for storage
 
+    /// Sign a message using this key.
     pub fn sign(&self, msg: &[u8]) -> Signature {
         use sha2::Sha512;
         self.secret.expand::<Sha512>()
             .sign::<Sha512>(msg, &self.public.0).into()
     }
 
+    /// Perform a Diffie-Hellman key exchange with the provided public key.
     pub fn diffie_hellman(&self, peer: &Ed25519KeyPublic) -> Result<KeyMaterial> {
         use x25519_dalek::diffie_hellman;
         use crate::convert::{convert_public_key, convert_secret_key};
@@ -250,18 +358,22 @@ impl Ed25519KeyPair {
 }
 
 impl Ed25519KeyPublic {
+    /// Deserialize the provided bytes into an Ed25519 public key.
     pub fn from_bytes(bytes: [u8; 32]) -> Result<Ed25519KeyPublic> {
         Ok(Ed25519KeyPublic(ed25519_dalek::PublicKey::from_bytes(&bytes)?))
     }
 
+    /// Serialize this key into a byte array.
     pub fn to_bytes(&self) -> [u8; 32] {
         self.0.to_bytes()
     }
 
+    /// Get a view of this key as bytes.
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_bytes()
     }
 
+    /// Verify a message signed by this key.
     pub fn verify(&self, msg: &[u8], sig: &Signature) -> Result<()> {
         use sha2::Sha512;
         Ok(self.0.verify::<Sha512>(msg, sig.as_dalek())?)
@@ -333,6 +445,11 @@ mod x3dh_tests {
     }
 }
 
+/// A key in a double ratchet chain.
+///
+/// Each of the three chains in the double ratchet is a sequence
+/// of chain keys derived from the previous chain key and the next
+/// ratchet key.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ChainKey(pub(crate) [u8; 32]);
 
@@ -363,6 +480,11 @@ impl From<KeyMaterial> for ChainKey {
     }
 }
 
+/// The output of the first ratchet is a session key.
+///
+/// The synchronous Diffie-Hellman ratchet produces a session
+/// key, which is used as the next root key for the sending
+/// and receiving chains.
 #[derive(Debug, PartialEq, Eq)]
 pub struct SessionKey(pub(crate) [u8; 32]);
 
@@ -387,6 +509,10 @@ impl<'a> From<&'a [u8]> for SessionKey {
     }
 }
 
+/// The output of the second ratchet is a message key.
+///
+/// The asynchronous ratchet produces message keys, which are
+/// each used to encrypt or decrypt one message.
 #[derive(Debug, PartialEq, Eq)]
 pub struct MessageKey(pub(crate) [u8; 32]);
 
@@ -411,6 +537,10 @@ impl<'a> From<&'a [u8]> for MessageKey {
     }
 }
 
+/// A secret key half of a Diffie-Hellman ratchet key pair.
+///
+/// This is generated, used to ratchet the sending chain, and then
+/// thrown away.
 #[derive(Debug, PartialEq, Eq)]
 pub struct RatchetKeySecret(pub(crate) [u8; 32]);
 
@@ -441,10 +571,16 @@ impl<'a> From<&'a [u8]> for RatchetKeySecret {
     }
 }
 
+/// The public half of the Diffie-Hellman ratchet key pair.
+///
+/// This half is sent along with each message to inform the peer
+/// that a Diffie-Hellman ratchet is necessary, and to provide the
+/// keying material for that ratchet.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RatchetKeyPublic(pub(crate) MontgomeryPoint);
 
 impl RatchetKeyPublic {
+    /// Deserialize the provided bytes into a ratchet public key.
     pub fn from_bytes(bytes: [u8; 32]) -> Result<RatchetKeyPublic> {
         use curve25519_dalek::edwards::CompressedEdwardsY;
         Ok(RatchetKeyPublic(
@@ -455,6 +591,7 @@ impl RatchetKeyPublic {
         ))
     }
 
+    /// Serialize this ratchet public key into a byte array.
     pub fn to_bytes(&self) -> [u8; 32] {
         let ed = match self.0.to_edwards(0) {
             Some(e) => e,
@@ -498,6 +635,12 @@ impl<'a> From<&'a SignedPrekeyPublic> for RatchetKeyPublic {
     }
 }
 
+/// A key pair used in the Diffie-Hellman ratchet.
+///
+/// The first ratchet of the Double Ratchet is the synchronous
+/// Diffie-Hellman ratchet.  On each half-round-trip, the receiver
+/// ratchets this twice: once to initialize the next receiving chain
+/// and once to initialize the next sending chain.
 #[derive(Debug, PartialEq, Eq)]
 pub struct RatchetKeyPair {
     pub public: RatchetKeyPublic,

@@ -1,3 +1,10 @@
+//! Convert Ed25519 keys to X25519.
+//!
+//! These functions are for internal use.  You are recommended to use
+//! the comparable ones in the dalek crates instead.
+
+// TODO: can we make these really public or gone?
+
 use ed25519_dalek::Keypair;
 use curve25519_dalek::edwards::CompressedEdwardsY;
 use curve25519_dalek::montgomery::MontgomeryPoint;
