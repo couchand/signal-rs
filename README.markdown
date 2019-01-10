@@ -58,12 +58,15 @@ Road Map
 
 - Clean up `x3dh` and `double-ratchet` public APIs & docs.
 - Get rid of any unwrap or panic!
-- Make `Keyserver` trait asyncable so we can use it with a
-  remote server.
-- Make a `Relayserver` trait for `double-ratchet` that
-  corresponds to the `Keyserver `trait for `x3dh`.
+- Use the `log` crate for logging.
+- Use a more curated set of crypto implementations.
+- Implement the encrypted headers extension.
 - Complete `client` and `server` example implementations.
 - Make a little interactive chat client example.
+- Make `Keyserver` trait asyncable so we can use it with a
+  remote server?
+- Make a `Relayserver` trait for `double-ratchet` that
+  corresponds to the `Keyserver `trait for `x3dh`?
 
 More Information
 ----------------
