@@ -303,3 +303,33 @@ fn test_session_roundtrip_encrypted() {
     assert_eq!(&m3_p[..], &m3_r[..]);
     assert_eq!(&m4_p[..], &m4_r[..]);
 }
+
+#[test]
+fn test_authenticated_encryption() {
+    use rand::OsRng;
+
+    use session::generate_ad;
+    use encrypt::AeadCipher;
+
+    let info = b"foobar!";
+    let session = || SessionBuilder::new(&info[..], get_rk());
+    let mut csprng = OsRng::new().unwrap();
+
+    let bob_keys = RatchetKeyPair::generate(&mut csprng);
+
+    let mut alice = session().connect_to(&bob_keys.public, &mut csprng);
+    let mut bob = session().accept_with(bob_keys);
+
+    let m1_p = b"hello bob!";
+    let (h1, m1_c) = alice.send(m1_p);
+
+    let mut bad_header = h1.clone();
+    bad_header.count += 1;
+
+    let key = bob.receive_key(h1, &mut csprng);
+    let ad = generate_ad(&b"ad"[..], &bad_header);
+    let cipher = AeadCipher::new(&b"another info"[..], key, &ad);
+    let res = cipher.decrypt(&m1_c);
+
+    assert!(res.is_err());
+}

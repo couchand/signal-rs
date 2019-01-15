@@ -69,6 +69,7 @@ impl<Bytes: Deref<Target=[u8]>> SessionBuilder<Bytes> {
 }
 
 /// A message header.
+#[derive(Clone)]
 pub struct Header {
     /// The public ratchet key currently in use.
     pub public_key: RatchetKeyPublic,
@@ -146,8 +147,9 @@ impl Session {
         ciphertext: &[u8],
         csprng: &mut R,
     ) -> Result<Vec<u8>> {
-        let key = self.receive_key(header, csprng);
-        let cipher = AeadCipher::new(&b"another info"[..], key, &b"ad"[..]);
+        let key = self.receive_key(header.clone(), csprng);
+        let ad = generate_ad(&b"ad"[..], &header);
+        let cipher = AeadCipher::new(&b"another info"[..], key, &ad);
         cipher.decrypt(ciphertext)
     }
 
@@ -157,7 +159,8 @@ impl Session {
         plaintext: &[u8],
     ) -> (Header, Vec<u8>) {
         let (header, key) = self.send_key();
-        let cipher = AeadCipher::new(&b"another info"[..], key, &b"ad"[..]);
+        let ad = generate_ad(&b"ad"[..], &header);
+        let cipher = AeadCipher::new(&b"another info"[..], key, &ad);
         let msg = cipher.encrypt(plaintext);
         (header, msg)
     }
@@ -194,4 +197,22 @@ impl Session {
         };
         (h, mk)
     }
+}
+
+pub(crate) fn generate_ad(bytes: &[u8], header: &Header) -> Vec<u8> {
+    let mut res = vec![];
+    res.extend_from_slice(bytes);
+    res.extend_from_slice(header.public_key.as_bytes());
+    res.extend_from_slice(&slice_word(header.prev_count)[..]);
+    res.extend_from_slice(&slice_word(header.count)[..]);
+    res
+}
+
+fn slice_word(word: u32) -> [u8; 4] {
+    [
+        ((word >> 24) & 0xFF) as u8,
+        ((word >> 16) & 0xFF) as u8,
+        ((word >>  8) & 0xFF) as u8,
+        ((word >>  0) & 0xFF) as u8,
+    ]
 }
