@@ -4,7 +4,7 @@
 //! so we model it here likewise.  This module is fairly
 //! low-level, see `Participant` for the use of this.
 
-use orion::default::hkdf;
+use use orion::hazardous::kdf::hkdf;
 use rand::{CryptoRng, RngCore};
 
 use signal_common::error::{Error, Result};
@@ -129,7 +129,10 @@ fn kdf(
         .chain(dh4.as_bytes().iter().cloned())
         .collect();
 
-    hkdf(&[0; 32], &input, b"this is my info string").unwrap().into()
+    let mut res = [0u8; 32];
+
+    hkdf(&[0; 32], &input, Some(b"this is my info string"), &mut res).unwrap();
+    res.into()
 }
 
 #[cfg(test)]

@@ -1,5 +1,5 @@
 use ed25519_dalek::Keypair;
-use orion::default::hkdf;
+use use orion::hazardous::kdf::hkdf;
 use rand::OsRng;
 use sha2::Sha512;
 use x25519_dalek::diffie_hellman;
@@ -96,5 +96,8 @@ fn kdf(info: &[u8], dh1: &[u8], dh2: &[u8], dh3: &[u8], dh4: &[u8]) -> [u8; 32] 
         .chain(dh4.iter().cloned())
         .collect();
 
-    hkdf(&[0; 32], &input, info).unwrap()
+    let mut res = [0u8; 32];
+
+    hkdf(&[0; 32], &input, Some(info), &mut res).unwrap();
+    res
 }
