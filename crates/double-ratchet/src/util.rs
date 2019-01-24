@@ -17,7 +17,7 @@ pub fn hkdf(
     let mut key = [0; 64];
 
     // TODO: not unwrap!
-    hkdf::derive_key(&salt, &input, &info, &mut key).unwrap();
+    hkdf::derive_key(&salt, &input, Some(&info), &mut key).unwrap();
 
     key
 }
@@ -31,7 +31,7 @@ pub fn hkdf_sha512(
     use orion::hazardous::kdf::hkdf;
 
     // TODO: not unwrap!
-    hkdf::derive_key(salt, input, info, key).unwrap();
+    hkdf::derive_key(salt, input, Some(info), key).unwrap();
 }
 
 pub fn hmac(
@@ -40,18 +40,14 @@ pub fn hmac(
 ) -> [u8; 32] {
     use orion::hazardous::mac::hmac;
 
-    let mut mac = hmac::init(key);
+    // TODO: not unwrap!
+    let hmac_key = hmac::SecretKey::from_slice(key).unwrap();
 
     // TODO: not unwrap!
-    mac.update(input).unwrap();
-
-    // TODO: not unwrap!
-    let hash = mac.finalize().unwrap();
+    let hash = hmac::hmac(&hmac_key, input).unwrap();
 
     let mut res = [0; 32];
-    for i in 0..32 {
-        res[i] = hash[i];
-    }
+    res.copy_from_slice(hash.unprotected_as_bytes()[..32]);
 
     res
 }
@@ -62,13 +58,16 @@ pub fn hmac_sha512(
 ) -> [u8; 64] {
     use orion::hazardous::mac::hmac;
 
-    let mut mac = hmac::init(key);
+    // TODO: not unwrap!
+    let hmac_key = hmac::SecretKey::from_slice(key).unwrap();
 
     // TODO: not unwrap!
-    mac.update(input).unwrap();
+    let hash = hmac::hmac(&hmac_key, input).unwrap();
 
-    // TODO: not unwrap!
-    mac.finalize().unwrap()
+    let mut res = [0; 64];
+    res.copy_from_slice(hash.unprotected_as_bytes());
+
+    res
 }
 
 pub fn hmac_sha512_two_slices(
@@ -78,7 +77,10 @@ pub fn hmac_sha512_two_slices(
 ) -> [u8; 64] {
     use orion::hazardous::mac::hmac;
 
-    let mut mac = hmac::init(key);
+    // TODO: not unwrap!
+    let hmac_key = hmac::SecretKey::from_slice(key).unwrap();
+
+    let mut mac = hmac::init(&hmac_key);
 
     // TODO: not unwrap!
     mac.update(input1).unwrap();

@@ -70,7 +70,7 @@ impl<'a> AeadCipher<'a> {
 
     /// Decrypt a message with this cipher.
     pub fn decrypt(self, ciphertext: &[u8]) -> Result<Vec<u8>> {
-        use orion::util::compare_ct;
+        use orion::util::secure_cmp;
 
         let msg_len = ciphertext.len();
         let enc_len = msg_len - HMAC_WIDTH;
@@ -89,7 +89,7 @@ impl<'a> AeadCipher<'a> {
 
         let msg_mac = &ciphertext[enc_len..];
 
-        match compare_ct(&mac, msg_mac) {
+        match secure_cmp(&mac, msg_mac) {
             Ok(true) => {},
             _ => return Err(Error),
         }
