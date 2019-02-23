@@ -6,7 +6,7 @@ authors = ["Andrew Dona-Couch <signal-rs@andrewcou.ch>"]
 [dependencies]
 curve25519-dalek = "0.21.0"
 ed25519-dalek = "0.8.1"
-orion = "0.12.1"
+orion = "0.13"
 rand = "0.5.5"
 sha2 = "0.7"
 
